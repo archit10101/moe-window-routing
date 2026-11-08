@@ -9,4 +9,9 @@ __pycache__/
 *.pyc
 input.txt
 env/
-venv/
+venv/*.bin
+*.pt
+*.parquet
+runs/
+.venv/
+__pycache__/
