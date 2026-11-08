@@ -148,11 +148,29 @@ def decide(B, W, win1, win64):
                 win1_minus_meanB=win1 - mean_b, win64_minus_meanB=win64 - mean_b)
 
 
+def direct_comparison(runs):
+    """win1-s0 vs base-s0. Both use seed 0 and LR_BASE, and n=1 routing is per-token routing,
+    so the two should agree up to floating-point rounding. Reported alongside the decision
+    rule, not part of it. None until both runs are finished."""
+    w, b = runs.get("win1-s0"), runs.get("base-s0")
+    if w is None or b is None or w["final"] is None or b["final"] is None:
+        return None
+    (tw, vw), (tb, vb) = curve(w), curve(b)
+    dw, db = dict(zip(tw.tolist(), vw.tolist())), dict(zip(tb.tolist(), vb.tolist()))
+    common = sorted(set(dw) & set(db))
+    diffs = np.array([dw[t] - db[t] for t in common])
+    sources = sorted(set(w["final"]["val"]) & set(b["final"]["val"]))
+    return dict(final_diff=w["final"]["val_overall"] - b["final"]["val_overall"],
+                max_abs_curve_diff=float(np.abs(diffs).max()) if len(diffs) else float("nan"),
+                n_points=len(common), tokens=np.array(common, dtype=float), diffs=diffs,
+                per_source={s: w["final"]["val"][s] - b["final"]["val"][s] for s in sources})
+
+
 # -----------------------------------------------------------------------------
 # outputs
 
-def plot_sanity(runs, path):
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+def plot_sanity(runs, cmp, path):
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(13, 4.5))
     for run in seed_runs(runs, "base"):
         t, v = curve(run)
         ax.plot(t / 1e6, v, lw=0.8, color="tab:blue", alpha=0.8, label=run["name"])
@@ -163,6 +181,14 @@ def plot_sanity(runs, path):
     ax.set_ylabel("val_overall (CE)")
     ax.set_title("Sanity: window n=1 vs baseline seeds")
     ax.legend()
+    ax2.axhline(0.0, color="gray", lw=0.8)
+    if cmp is not None and cmp["n_points"]:
+        ax2.plot(cmp["tokens"] / 1e6, cmp["diffs"], "o-", color="tab:red", ms=3)
+        ax2.set_title(f"win1-s0 - base-s0 (same seed and LR); final {cmp['final_diff']:+.5f}")
+    else:
+        ax2.set_title("win1-s0 - base-s0: needs both runs finished")
+    ax2.set_xlabel("training tokens (M)")
+    ax2.set_ylabel("val_overall difference")
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
@@ -342,7 +368,8 @@ def main_analysis(runs, out_dir):
     if not missing:
         res = decide([final_val(r) for r in base], [final_val(r) for r in win], win1, win64)
 
-    plot_sanity(runs, os.path.join(out_dir, "sanity.png"))
+    cmp = direct_comparison(runs)
+    plot_sanity(runs, cmp, os.path.join(out_dir, "sanity.png"))
     plot_main(runs, os.path.join(out_dir, "main_comparison.png"))
     rows, header = write_per_source(runs, os.path.join(out_dir, "per_source.csv"),
                                     os.path.join(out_dir, "per_source.md"))
@@ -364,6 +391,21 @@ def main_analysis(runs, out_dir):
                   f"| 2s | {2 * res['s']:.5f} |",
                   f"| win1-s0 - mean(B) | {res['win1_minus_meanB']:+.5f} (sanity {'ok' if res['sanity_ok'] else 'FAILED'}) |",
                   f"| win64-s0 - mean(B) | {res['win64_minus_meanB']:+.5f} |", ""]
+    lines += ["## Direct sanity comparison: win1-s0 vs base-s0", "",
+              "Both use seed 0 and LR_BASE, and n=1 routing equals per-token routing, so they should agree up to "
+              "floating-point rounding. Reported alongside the decision rule above; it does not change the verdict.",
+              ""]
+    if cmp is None:
+        lines += ["Not available yet: needs finished win1-s0 and base-s0.", ""]
+    else:
+        lines += ["| quantity | value |", "|---|---|",
+                  f"| win1-s0 - base-s0 (final val_overall) | {cmp['final_diff']:+.5f} |",
+                  f"| max abs(win1-s0 - base-s0) over the eval curve ({cmp['n_points']} points) | "
+                  f"{cmp['max_abs_curve_diff']:.5f} |"]
+        lines += [f"| final CE difference, {s} | {d:+.5f} |" for s, d in cmp["per_source"].items()]
+        if res is not None:
+            lines.append(f"| for scale: 2s | {2 * res['s']:.5f} |")
+        lines.append("")
     lines += ["## Final val_overall per run", "", "| run | final val_overall | tokens |", "|---|---|---|"]
     for name, run in runs.items():
         if run["final"] is not None:

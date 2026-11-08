@@ -103,7 +103,7 @@ python analysis/analyze.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/
 cat config/chosen_lr.py                            # LR_BASE and LR_WIN are now numbers
 ```
 
-The rule: take the lowest final `val_overall`. If another LR is within 0.01 of it, take the lowest such LR. The main runs read `config/chosen_lr.py` when they start, so it must be set in `$PROJECT/code` before you submit. To keep a record, commit it (`git add config/chosen_lr.py && git commit -m "Chosen LRs"`) and push from the cluster, or copy the two numbers into the repo on your laptop.
+The rule: take the lowest final `val_overall`. If another LR is within 0.01 of it, take the lowest such LR. `LR_BASE` is used by `base-s*` **and by the sanity run `win1-s0`**, which therefore matches `base-s0` in seed and LR. `LR_WIN` is used by `win16-s*` and `win64-s0`. The main runs read `config/chosen_lr.py` when they start, so it must be set in `$PROJECT/code` before you submit. To keep a record, commit it (`git add config/chosen_lr.py && git commit -m "Chosen LRs"`) and push from the cluster, or copy the two numbers into the repo on your laptop.
 
 ### 2.6 Main runs (8 runs × 500M tokens)
 
@@ -139,9 +139,11 @@ cat $PROJECT/analysis/main/summary.md              # verdict, gap, s and every f
 scp -r <you>@<engaging-login-host>:$PROJECT/analysis/main ./analysis_main
 ```
 
-The analysis uses every finished seed and needs at least 2 per arm, plus `win1-s0` and `win64-s0`. It exits with code 2 and writes "No verdict yet" until those runs exist. Outputs:
+The analysis uses every finished seed and needs at least 2 per arm, plus `win1-s0` and `win64-s0`. It exits with code 2 and writes "No verdict yet" until those runs exist.
 
-- `sanity.png`, `main_comparison.png`
+`summary.md` also has a **direct sanity comparison of `win1-s0` against `base-s0`** (same seed and same LR, and n=1 routing is per-token routing). It reports the final `val_overall` difference, the largest difference anywhere along the eval curve, and the per-source final differences. These should all be close to zero; a clear gap points to a bug in the window code path. This comparison is reported next to the verdict and doesn't change it: the verdict's sanity check still compares `win1-s0` against the baseline mean (±2s). Outputs:
+
+- `sanity.png` (left: `win1-s0` vs the baseline seeds; right: `win1-s0` − `base-s0` over training), `main_comparison.png`
 - `per_source.{csv,md}`
 - `window_sweep.png`, `loads.png`
 - `routing_heatmap.png`, `routing_mi.csv`

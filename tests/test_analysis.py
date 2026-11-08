@@ -56,6 +56,28 @@ def test_analysis_runs(smoke_run, tmp_path):
     # identical copies: s = 0, gap = 0, sanity holds -> INCONCLUSIVE
     assert "**Verdict: INCONCLUSIVE**" in summary and "Verdict: INCONCLUSIVE" in proc.stdout
     assert "low-sample" in (out / "per_source.md").read_text()
+    # direct win1-s0 vs base-s0 comparison (identical copies -> zero difference)
+    assert "## Direct sanity comparison: win1-s0 vs base-s0" in summary
+    assert "| win1-s0 - base-s0 (final val_overall) | +0.00000 |" in summary
+    assert "win1-s0 - base-s0 (final val_overall)" in proc.stdout
+
+
+def test_direct_comparison(smoke_run, tmp_path):
+    runs_dir = fake_runs(smoke_run, tmp_path / "runs", MAIN_RUNS)
+    base0 = json.loads((runs_dir / "base-s0" / "final.json").read_text())["val_overall"]
+    set_final(runs_dir / "win1-s0", base0 + 0.0123)
+    cmp = analyze.direct_comparison(analyze.read_runs(str(runs_dir)))
+    assert cmp["final_diff"] == pytest.approx(0.0123)
+    assert cmp["max_abs_curve_diff"] == pytest.approx(0.0123)  # earlier eval points are identical
+    assert cmp["n_points"] >= 3
+    assert set(cmp["per_source"]) == {"book", "c4", "github"}
+    out = tmp_path / "out"
+    proc = subprocess.run([sys.executable, ANALYZE, "--runs_dir", str(runs_dir), "--out_dir", str(out)],
+                          capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "| win1-s0 - base-s0 (final val_overall) | +0.01230 |" in (out / "summary.md").read_text()
+    # the verdict still follows the part 8 rule against mean(B): s = 0 here, so the sanity check fails
+    assert "**Verdict: INVALID: sanity check failed**" in (out / "summary.md").read_text()
 
 
 def test_missing_runs_give_no_verdict(smoke_run, tmp_path):
@@ -64,6 +86,7 @@ def test_missing_runs_give_no_verdict(smoke_run, tmp_path):
                           capture_output=True, text=True, timeout=120)
     assert proc.returncode == 2
     assert "No verdict yet" in proc.stdout
+    assert "Not available yet: needs finished win1-s0 and base-s0." in proc.stdout
 
 
 def test_decision_rule():

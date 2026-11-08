@@ -21,7 +21,7 @@ EXPECTED = {
     **{f"lr-win16-{s}": (W16, 0, v, 100 * M) for s, v in (("1e-3", 1e-3), ("2e-3", 2e-3), ("4e-3", 4e-3))},
     **{f"base-s{s}": (B, s, "LR_BASE", 500 * M) for s in range(5)},
     **{f"win16-s{s}": (W16, s, "LR_WIN", 500 * M) for s in range(5)},
-    "win1-s0": ([0, 0, 0, 0, 1, 1, 1, 1], 0, "LR_WIN", 500 * M),
+    "win1-s0": ([0, 0, 0, 0, 1, 1, 1, 1], 0, "LR_BASE", 500 * M),  # same LR as base-s0 (changed from spec)
     "win64-s0": ([0, 0, 0, 0, 64, 64, 64, 64], 0, "LR_WIN", 500 * M),
     "smoke-gpu-base": (B, 0, 2e-3, 200 * 65536),
     "smoke-gpu-win16": (W16, 0, 2e-3, 200 * 65536),

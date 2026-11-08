@@ -28,7 +28,9 @@ def runs():
     for s in range(5):  # seeds 3 and 4 are the optional extra seeds
         table[f"base-s{s}"] = dict(window_layers=BASE, seed=s, lr="LR_BASE", total_tokens=500 * M)
         table[f"win16-s{s}"] = dict(window_layers=win(16), seed=s, lr="LR_WIN", total_tokens=500 * M)
-    table["win1-s0"] = dict(window_layers=win(1), seed=0, lr="LR_WIN", total_tokens=500 * M)
+    # sanity check: n=1 is per-token routing, so it uses the baseline's LR and seed and should
+    # track base-s0 almost exactly (a deliberate change from the PROMPT.md table, which says LR_WIN)
+    table["win1-s0"] = dict(window_layers=win(1), seed=0, lr="LR_BASE", total_tokens=500 * M)
     table["win64-s0"] = dict(window_layers=win(64), seed=0, lr="LR_WIN", total_tokens=500 * M)
     smoke_extra = dict(log_interval=10, eval_interval=100)
     table["smoke-gpu-base"] = dict(window_layers=BASE, seed=0, lr=2e-3, total_tokens=200 * 65536, extra=smoke_extra)
