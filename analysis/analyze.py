@@ -2,10 +2,13 @@
 """Analysis for the MoE window-routing pilot (docs/PROMPT.md part 8).
 
     python analysis/analyze.py --runs_dir <dir> --out_dir <dir> [--lr_check [--write]]
+    python analysis/analyze.py --runs_dir <dir> --partial
 
 LR-check mode picks each arm's LR from the lr-* runs (and with --write updates
 config/chosen_lr.py). Main mode writes the plots, tables and summary.md and
-applies the decision rule. Uses only numpy, matplotlib, json, csv and the
+applies the decision rule. Partial mode prints an interim per-arm comparison at
+the latest eval step that every started main run shares; it needs no final
+results and writes no files. Uses only numpy, matplotlib, json, csv and the
 standard library. Runs are identified by their folder names.
 """
 import argparse
@@ -78,13 +81,18 @@ def curve(run):
     return np.array(toks, dtype=float), np.array([pts[t] for t in toks])
 
 
+def is_seed_run(name, prefix):
+    return name.startswith(prefix + "-s") and name[len(prefix) + 2:].isdigit()
+
+
 def seed_runs(runs, prefix):
     """Runs named <prefix>-s<N>, sorted by seed."""
-    out = []
-    for name, run in runs.items():
-        if name.startswith(prefix + "-s") and name[len(prefix) + 2:].isdigit():
-            out.append((int(name[len(prefix) + 2:]), run))
+    out = [(int(name[len(prefix) + 2:]), run) for name, run in runs.items() if is_seed_run(name, prefix)]
     return [r for _, r in sorted(out, key=lambda x: x[0])]
+
+
+def is_main_run(name):
+    return is_seed_run(name, "base") or is_seed_run(name, "win16") or name in ("win1-s0", "win64-s0")
 
 
 # -----------------------------------------------------------------------------
@@ -164,6 +172,74 @@ def direct_comparison(runs):
                 max_abs_curve_diff=float(np.abs(diffs).max()) if len(diffs) else float("nan"),
                 n_points=len(common), tokens=np.array(common, dtype=float), diffs=diffs,
                 per_source={s: w["final"]["val"][s] - b["final"]["val"][s] for s in sources})
+
+
+# -----------------------------------------------------------------------------
+# partial (interim) comparison
+
+PARTIAL_ARMS = ("base", "win16", "win1", "win64")  # base/win16: every seed; win1/win64: the s0 run
+
+
+def partial_compare(runs):
+    """Interim comparison at the latest periodic eval step shared by every started main run.
+
+    Uses eval records only (eval_batches per source), never the final evaluation, so the
+    numbers are comparable across runs at the same step. Returns None if no main run has
+    logged an eval yet.
+    """
+    main = {n: r for n, r in runs.items() if is_main_run(n)}
+    started = {n: r for n, r in main.items() if r["eval"]}
+    if not started:
+        return None
+    step = max(set.intersection(*[set(r["eval"]) for r in started.values()]))  # step 0 is always shared
+    val = {n: r["eval"][step]["val_overall"] for n, r in started.items()}
+    latest = {n: max(r["eval"]) for n, r in started.items()}
+
+    arms = {}
+    for arm in PARTIAL_ARMS:
+        if arm in ("base", "win16"):
+            names = [r["name"] for r in seed_runs(started, arm)]
+        else:
+            names = [n for n in (f"{arm}-s0",) if n in started]
+        if not names:
+            continue
+        v = np.array([val[n] for n in names])
+        arms[arm] = dict(runs=names, n=len(v), mean=float(v.mean()),
+                         std=float(v.std(ddof=1)) if len(v) >= 2 else float("nan"),
+                         min=float(v.min()), max=float(v.max()))
+
+    gap = s = float("nan")
+    if "base" in arms and "win16" in arms:
+        gap = arms["base"]["mean"] - arms["win16"]["mean"]
+        if arms["base"]["n"] >= 2 and arms["win16"]["n"] >= 2:
+            s = math.sqrt((arms["base"]["std"] ** 2 + arms["win16"]["std"] ** 2) / 2)
+    win1_vs_base0 = val["win1-s0"] - val["base-s0"] if "win1-s0" in val and "base-s0" in val else float("nan")
+
+    return dict(step=step, tokens=next(iter(started.values()))["eval"][step]["tokens"], arms=arms, values=val,
+                gap=gap, s=s, win1_minus_base0=win1_vs_base0,
+                limiting=sorted(n for n, st in latest.items() if st == step),
+                not_started=sorted(set(main) - set(started)))
+
+
+def format_partial(p):
+    def num(x, fmt):
+        return "-" if x is None or (isinstance(x, float) and math.isnan(x)) else format(x, fmt)
+
+    lines = [f"Partial comparison at step {p['step']} ({p['tokens'] / 1e6:.1f}M tokens): the latest eval step "
+             f"shared by all {len(p['values'])} started main runs.",
+             "Interim numbers from periodic evals (eval_batches per source), not final results; no verdict.",
+             f"Limited by: {', '.join(p['limiting'])}", "",
+             f"{'arm':<7}{'runs':>5}{'mean':>11}{'std':>10}{'min':>11}{'max':>11}"]
+    for arm, a in p["arms"].items():
+        lines.append(f"{arm:<7}{a['n']:>5}{a['mean']:>11.5f}{num(a['std'], '.5f'):>10}"
+                     f"{a['min']:>11.5f}{a['max']:>11.5f}")
+    lines += ["",
+              f"gap = mean(base) - mean(win16): {num(p['gap'], '+.5f')} (positive = window arm better); "
+              f"pooled s: {num(p['s'], '.5f')}",
+              f"win1-s0 - base-s0: {num(p['win1_minus_base0'], '+.5f')}"]
+    if p["not_started"]:
+        lines.append(f"Not started yet (no eval logged): {', '.join(p['not_started'])}")
+    return "\n".join(lines)
 
 
 # -----------------------------------------------------------------------------
@@ -425,18 +501,30 @@ def main_analysis(runs, out_dir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs_dir", required=True)
-    ap.add_argument("--out_dir", required=True)
+    ap.add_argument("--out_dir", help="output folder (required for the main analysis)")
     ap.add_argument("--lr_check", action="store_true", help="pick each arm's LR from the lr-* runs")
     ap.add_argument("--write", action="store_true", help="with --lr_check: write config/chosen_lr.py")
     ap.add_argument("--chosen_lr_path", default=os.path.join(REPO, "config", "chosen_lr.py"))
+    ap.add_argument("--partial", action="store_true",
+                    help="print an interim comparison at the latest eval step shared by all started main runs")
     args = ap.parse_args()
     if args.write and not args.lr_check:
         ap.error("--write only applies with --lr_check")
+    if args.partial and args.lr_check:
+        ap.error("--partial and --lr_check are separate modes")
+    if not (args.partial or args.lr_check) and args.out_dir is None:
+        ap.error("--out_dir is required for the main analysis")
     runs = read_runs(args.runs_dir)
     if not runs:
         sys.exit(f"no runs with log.jsonl in {args.runs_dir}")
     if args.lr_check:
         lr_check(runs, args.write, args.chosen_lr_path)
+        return
+    if args.partial:
+        p = partial_compare(runs)
+        if p is None:
+            sys.exit(f"no main run (base-s*, win16-s*, win1-s0, win64-s0) has logged an eval in {args.runs_dir}")
+        print(format_partial(p))
         return
     res = main_analysis(runs, args.out_dir)
     if res is None:

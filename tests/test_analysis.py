@@ -1,5 +1,6 @@
 """Analysis-script tests (PROMPT.md part 6 test_analysis_runs, plus decision-rule checks)."""
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -115,6 +116,72 @@ def test_lr_check_tie_and_write(smoke_run, tmp_path):
     exec(chosen.read_text(), ns)
     assert ns["LR_BASE"] == 2e-3  # 4e-3 is best, 2e-3 is within 0.01 and lower
     assert ns["LR_WIN"] == 2e-3
+
+
+def write_partial_log(run_dir, evals):
+    """A mid-training log: header plus eval records {step: val_overall}; no final, no done."""
+    run_dir.mkdir(parents=True)
+    recs = [{"type": "header", "run_name": run_dir.name}]
+    recs += [{"type": "eval", "step": s, "tokens": s * 65536, "val": {"c4": v}, "val_overall": v}
+             for s, v in sorted(evals.items())]
+    (run_dir / "log.jsonl").write_text("".join(json.dumps(r) + "\n" for r in recs))
+
+
+@pytest.fixture
+def partial_runs(tmp_path):
+    runs = tmp_path / "runs"
+    logs = {
+        "base-s0": {0: 10.8, 500: 4.10, 1000: 3.90},
+        "base-s1": {0: 10.8, 500: 4.12, 1000: 3.91},
+        "base-s2": {0: 10.8, 500: 4.14},                      # slowest: limits the shared step to 500
+        "win16-s0": {0: 10.8, 500: 4.00, 1000: 3.80, 1500: 3.70},
+        "win16-s1": {0: 10.8, 500: 4.04, 1000: 3.82},
+        "win16-s2": {},                                      # started, but no eval logged yet
+        "win1-s0": {0: 10.8, 500: 4.11, 1000: 3.90},
+        "win64-s0": {0: 10.8, 500: 4.05, 1000: 3.85},
+        "lr-base-1e-3": {0: 10.8},                           # not a main run: must not limit the step
+    }
+    for name, evals in logs.items():
+        write_partial_log(runs / name, evals)
+    return runs
+
+
+def test_partial_compare(partial_runs):
+    p = analyze.partial_compare(analyze.read_runs(str(partial_runs)))
+    assert p["step"] == 500 and p["tokens"] == 500 * 65536
+    assert p["limiting"] == ["base-s2"]
+    assert p["not_started"] == ["win16-s2"]
+    assert "lr-base-1e-3" not in p["values"]
+    base, win = p["arms"]["base"], p["arms"]["win16"]
+    assert base["runs"] == ["base-s0", "base-s1", "base-s2"] and win["runs"] == ["win16-s0", "win16-s1"]
+    assert base["mean"] == pytest.approx(4.12) and base["std"] == pytest.approx(0.02)
+    assert (base["min"], base["max"]) == (pytest.approx(4.10), pytest.approx(4.14))
+    assert win["mean"] == pytest.approx(4.02) and win["std"] == pytest.approx(0.02 ** 0.5 * 0.2)
+    assert p["gap"] == pytest.approx(0.10)
+    assert p["s"] == pytest.approx(((0.02 ** 2 + win["std"] ** 2) / 2) ** 0.5)
+    assert p["win1_minus_base0"] == pytest.approx(0.01)
+    assert p["arms"]["win1"]["n"] == 1 and math.isnan(p["arms"]["win1"]["std"])
+    assert p["arms"]["win64"]["mean"] == pytest.approx(4.05)
+
+
+def test_partial_cli(partial_runs, tmp_path):
+    proc = subprocess.run([sys.executable, ANALYZE, "--runs_dir", str(partial_runs), "--partial"],
+                          capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    out = proc.stdout
+    assert "Partial comparison at step 500 (32.8M tokens)" in out
+    assert "Limited by: base-s2" in out and "Not started yet (no eval logged): win16-s2" in out
+    assert "base       3    4.12000   0.02000    4.10000    4.14000" in out
+    assert "win1       1    4.11000         -" in out
+    assert "gap = mean(base) - mean(win16): +0.10000" in out
+    assert "win1-s0 - base-s0: +0.01000" in out
+    assert not (tmp_path / "out").exists()  # partial mode writes no files
+
+    empty = tmp_path / "empty"
+    write_partial_log(empty / "lr-base-1e-3", {0: 10.8})
+    proc = subprocess.run([sys.executable, ANALYZE, "--runs_dir", str(empty), "--partial"],
+                          capture_output=True, text=True, timeout=120)
+    assert proc.returncode != 0 and "no main run" in proc.stderr
 
 
 def test_last_record_per_step_wins(smoke_run, tmp_path):

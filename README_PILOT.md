@@ -120,7 +120,10 @@ scripts/slurm/submit_main.sh b200                  # job A: base-s0 win16-s0 bas
 scripts/slurm/status.sh                            # step, tokens, train CE, tok/s, val_overall, done + squeue
 tail -f $PROJECT/runs/base-s0/stdout.log
 ls $PROJECT/runs/slurm/                            # <job-name>-<jobid>.out and requeue_<jobid>.count
+python analysis/analyze.py --runs_dir $PROJECT/runs --partial   # interim per-arm comparison (no files written)
 ```
+
+`--partial` picks the latest eval step that every started main run has logged. At that step it prints, per arm (base, win16, win1, win64): the number of runs, mean `val_overall`, std across seeds (ddof = 1), min and max. It also prints mean(base) − mean(win16), the pooled s, and `win1-s0` − `base-s0`. It reads periodic evals only, so it works before any run finishes. It never gives a verdict; that needs the full analysis in section 2.9.
 
 Jobs requeue themselves until every run in the group is done, with at most 3 requeues per job. If a group is still unfinished after that, resubmit it: `scripts/slurm/submit.sh main-A b200 05:30:00 base-s0 win16-s0 base-s1 win16-s1` (runs that are already done are skipped).
 
@@ -215,6 +218,10 @@ tail -f /home/ubuntu/launch_logs/base-s0.log       # retries, sync, shutdown mes
 tail -f /home/ubuntu/runs/base-s0/stdout.log
 python scripts/status.py /home/ubuntu/runs
 aws s3 ls s3://$S3_BUCKET/runs/                    # synced every 5 min (ckpt every 15 min)
+
+# interim comparison while runs are going (see section 2.7)
+aws s3 sync s3://$S3_BUCKET/runs/ ./runs_s3/ --exclude "*/ckpt/*"
+python analysis/analyze.py --runs_dir ./runs_s3 --partial
 
 # when everything is done
 aws s3 sync s3://$S3_BUCKET/runs/ ./runs_s3/ --exclude "*/ckpt/*"
