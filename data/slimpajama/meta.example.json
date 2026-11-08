@@ -1,0 +1,51 @@
+{
+  "dataset": "DKYoon/SlimPajama-6B",
+  "dataset_revision": "b5f90f419b7489cdba26fdbc8c022fcb5562f968",
+  "tokenizer": "gpt2 (tiktoken)",
+  "eot_token": 50256,
+  "dataset": "DKYoon/SlimPajama-6B",
+  "dtype": "uint16",
+  "train_files_used": [
+    "train-00000-of-00048-ab2b35705f029d94.parquet",
+    "train-00001-of-00048-f2ff493d6eb6da4e.parquet",
+    "train-00002-of-00048-4ff3ce9cc290a2f2.parquet",
+    "train-00003-of-00048-0dd6d32660874d8a.parquet",
+    "train-00004-of-00048-fd88fe4932b810de.parquet"
+  ],
+  "train_tokens_total": 600000000,
+  "train_tokens_by_source": {
+    "arxiv": 31627445,
+    "book": 19268917,
+    "c4": 152758806,
+    "commoncrawl": 297945800,
+    "github": 45977379,
+    "stackexchange": 24086160,
+    "wikipedia": 28335493
+  },
+  "train_share_by_source": {
+    "arxiv": 0.0527,
+    "book": 0.0321,
+    "c4": 0.2546,
+    "commoncrawl": 0.4966,
+    "github": 0.0766,
+    "stackexchange": 0.0401,
+    "wikipedia": 0.0472
+  },
+  "val_tokens_by_source": {
+    "arxiv": 871197,
+    "book": 225369,
+    "c4": 2557991,
+    "commoncrawl": 4879114,
+    "github": 1093237,
+    "stackexchange": 823478,
+    "wikipedia": 910753
+  },
+  "val_topped_up_from_test": [
+    "arxiv",
+    "book",
+    "github",
+    "stackexchange",
+    "wikipedia"
+  ],
+  "created": "2026-11-08 12:06:00"
+}
