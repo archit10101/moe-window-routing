@@ -295,7 +295,7 @@ class GPT(nn.Module):
         loss = None
         if targets is not None:
             # pure next-token cross-entropy; autocast runs cross_entropy in fp32
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1))
         return logits, loss
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
