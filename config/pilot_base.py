@@ -48,3 +48,8 @@ dtype = 'bfloat16'  # autocast on CUDA; plain fp32 on CPU
 num_threads = 4
 benchmark_steps = 0
 resume = True
+
+# follow-up options (docs/FOLLOWUP_PROMPT.md); the defaults reproduce the pilot exactly
+router_input = 'replace'  # 'replace' (pilot) or 'both': router sees h plus a context router on the window mean
+router_lr_mult = 1.0  # LR multiplier for router parameters (router_norm, router, context router)
+log_router_grad = False  # add per-layer router_grad_norm (before clipping) to train log lines

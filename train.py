@@ -36,12 +36,14 @@ FALLBACK_SHARES = {
 }
 
 MODEL_KEYS = ["block_size", "vocab_size", "n_layer", "n_head", "n_embd", "n_exp", "top_k",
-              "expert_hidden", "shared_hidden", "window_layers"]
+              "expert_hidden", "shared_hidden", "window_layers", "router_input"]
 
 # Keys that must match between a checkpoint and the config resuming from it.
 RESUME_MUST_MATCH = MODEL_KEYS + ["seed", "lr", "min_lr_ratio", "warmup_frac", "weight_decay",
                                   "beta1", "beta2", "grad_clip", "batch_size", "total_tokens",
-                                  "aux_coef", "z_coef", "dtype"]
+                                  "aux_coef", "z_coef", "dtype", "router_lr_mult"]
+
+CTX_SEED_OFFSET = 1_000_003  # the "both" context routers are initialized from seed + this
 
 REQUIRED = ["run_name", "lr", "total_tokens"]
 
@@ -250,7 +252,7 @@ def save_ckpt(path, model, optimizer, step, cfg, wall_time_s):
 
 def load_ckpt(path, model, optimizer, cfg):
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
-    old = ckpt["config"]
+    old = with_defaults(ckpt["config"])
     bad = [k for k in RESUME_MUST_MATCH if old.get(k) != cfg.get(k)]
     if bad:
         sys.exit(f"train.py: checkpoint {path} was made with a different config for {bad}; "
@@ -271,20 +273,38 @@ def load_ckpt(path, model, optimizer, cfg):
 # -----------------------------------------------------------------------------
 # training
 
-def build(cfg, device):
+def with_defaults(cfg):
+    """A config (e.g. from an older checkpoint) with any missing keys filled from pilot_base.py."""
+    return {**default_config(), **cfg}
+
+
+def build_model(cfg, device):
+    """The GPT for this config, initialized from torch.manual_seed(seed)."""
     torch.manual_seed(cfg["seed"])
-    model = GPT(GPTConfig(**{k: cfg[k] for k in MODEL_KEYS})).to(device)
+    gcfg = GPTConfig(**{k: cfg[k] for k in MODEL_KEYS}, ctx_seed=cfg["seed"] + CTX_SEED_OFFSET)
+    return GPT(gcfg).to(device)
+
+
+def build(cfg, device):
+    model = build_model(cfg, device)
     optimizer = model.configure_optimizers(cfg["weight_decay"], cfg["lr"], (cfg["beta1"], cfg["beta2"]),
-                                           "cuda" if device.startswith("cuda") else "cpu")
+                                           "cuda" if device.startswith("cuda") else "cpu",
+                                           router_lr_mult=cfg["router_lr_mult"])
     return model, optimizer
 
 
-def train_step(model, optimizer, data, step, cfg, max_steps, grad_accum, device, ctx):
-    """One optimizer step. Returns tensors (no .item()): ce, aux, z (micro-batch means),
-    grad_norm, and the per-layer load fractions pooled over the step."""
-    lr = lr_at(step, cfg, max_steps)
+def set_lr(optimizer, lr):
+    """Schedule lr for every param group, scaled by the group's lr_mult (router groups)."""
     for g in optimizer.param_groups:
-        g["lr"] = lr
+        g["lr"] = lr * g.get("lr_mult", 1.0)
+
+
+def train_step(model, optimizer, data, step, cfg, max_steps, grad_accum, device, ctx, router_grad=False):
+    """One optimizer step. Returns tensors (no .item()): ce, aux, z (micro-batch means),
+    grad_norm, the per-layer load fractions pooled over the step and, with router_grad=True,
+    the per-layer router gradient norms measured before clipping."""
+    lr = lr_at(step, cfg, max_steps)
+    set_lr(optimizer, lr)
     offsets = sample_offsets(cfg["seed"], step, cfg["batch_size"], len(data), cfg["block_size"])
     x_all, y_all = make_xy(data, offsets, cfg["block_size"], device)
     mb = cfg["micro_batch_size"]
@@ -301,12 +321,13 @@ def train_step(model, optimizer, data, step, cfg, max_steps, grad_accum, device,
         aux_acc = aux_acc + aux.detach()
         z_acc = z_acc + z.detach()
     load = model.load_fractions()  # pooled over this step's micro-batches
+    router_grad_norm = model.router_grad_norms() if router_grad else None  # before clipping
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), cfg["grad_clip"])
     optimizer.step()
     model.reset_load_buffers()
     optimizer.zero_grad(set_to_none=True)
     return dict(ce=ce_acc / grad_accum, aux=aux_acc / grad_accum, z=z_acc / grad_accum,
-                grad_norm=grad_norm, load=load, lr=lr)
+                grad_norm=grad_norm, load=load, lr=lr, router_grad_norm=router_grad_norm)
 
 
 def benchmark(model, optimizer, data, cfg, max_steps, grad_accum, device, ctx):
@@ -414,7 +435,9 @@ def train(cfg, stop_at_step=None):
         last_ckpt = time.time()
         t_log, tokens_since_log, paused = time.time(), 0, 0.0
         while step < max_steps:
-            out = train_step(model, optimizer, data, step, cfg, max_steps, grad_accum, device, ctx)
+            log_now = (step + 1) % cfg["log_interval"] == 0
+            out = train_step(model, optimizer, data, step, cfg, max_steps, grad_accum, device, ctx,
+                             router_grad=cfg["log_router_grad"] and log_now)
             step += 1
             tokens_since_log += tokens_per_step
 
@@ -426,6 +449,8 @@ def train(cfg, stop_at_step=None):
                            grad_norm=out["grad_norm"].item(), tok_per_s=tokens_since_log / max(dt, 1e-9),
                            load_max=load.max(1).values.tolist(), load_min=load.min(1).values.tolist(),
                            time=wall())
+                if cfg["log_router_grad"]:
+                    rec["router_grad_norm"] = out["router_grad_norm"].float().cpu().tolist()
                 log.write("train", **rec)
                 print(f"step {step}/{max_steps}: ce {rec['ce']:.4f} aux {rec['aux']:.4f} z {rec['z']:.4f} "
                       f"lr {rec['lr']:.2e} gnorm {rec['grad_norm']:.3f} {rec['tok_per_s']:,.0f} tok/s",

@@ -107,6 +107,12 @@ class MoELayer(nn.Module):
         assert 1 <= self.top_k <= self.n_exp
         # plain attribute: it changes the router input, never the parameters
         self.window = int(window)
+        # "replace": router sees the window mean (if window >= 1); "both": router sees h, plus a
+        # context router on the window mean. The context modules are added by GPT after the whole
+        # model is built (see GPT._add_context_routers), so they never shift the baseline's init.
+        self.router_input = config.router_input
+        self.router_ctx_norm = None
+        self.router_ctx = None
 
         self.router_norm = RMSNorm(C, eps=1e-6)
         self.router = nn.Linear(C, self.n_exp, bias=False)
@@ -133,12 +139,17 @@ class MoELayer(nn.Module):
         k = self.top_k
 
         # router input, computed on [B, T, C] before any flattening
-        r = h if self.window == 0 else causal_window_mean(h, self.window)
+        use_ctx = self.router_ctx is not None  # router_input == "both" in a window layer
+        r = h if (self.window == 0 or use_ctx) else causal_window_mean(h, self.window)
 
         # router math in fp32 with autocast disabled
         with torch.autocast(device_type=h.device.type, enabled=False):
             rn = self.router_norm(r.float())
-            logits = F.linear(rn.float(), self.router.weight.float()).reshape(N, self.n_exp)
+            logits = F.linear(rn.float(), self.router.weight.float())
+            if use_ctx:
+                c = self.router_ctx_norm(causal_window_mean(h, self.window).float())
+                logits = logits + F.linear(c.float(), self.router_ctx.weight.float())
+            logits = logits.reshape(N, self.n_exp)
             probs = F.softmax(logits, dim=-1)
             top_p, top_i = probs.topk(k, dim=-1)  # [N, k]
             gates = top_p / top_p.sum(-1, keepdim=True)
@@ -200,6 +211,8 @@ class GPTConfig:
     expert_hidden: int = 512
     shared_hidden: int = 1024
     window_layers: list = field(default_factory=lambda: [0] * 8)
+    router_input: str = "replace"  # "replace" or "both" (follow-up E5)
+    ctx_seed: int = 1_000_003  # seed of the generator for the "both" context routers (train: seed + 1,000,003)
 
 
 class GPT(nn.Module):
@@ -208,6 +221,7 @@ class GPT(nn.Module):
         super().__init__()
         assert len(config.window_layers) == config.n_layer, "window_layers needs one entry per layer"
         assert all(int(w) >= 0 for w in config.window_layers)
+        assert config.router_input in ("replace", "both"), f"unknown router_input {config.router_input!r}"
         self.config = config
 
         self.transformer = nn.ModuleDict(dict(
@@ -226,10 +240,28 @@ class GPT(nn.Module):
             if pn.endswith("attn.c_proj.weight") or pn.endswith("w_down.weight"):
                 torch.nn.init.normal_(p, mean=0.0, std=resid_std)
 
+        if config.router_input == "both":
+            self._add_context_routers(config)
+
     @torch.no_grad()
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    @torch.no_grad()
+    def _add_context_routers(self, config):
+        """Add router_ctx_norm / router_ctx to every window layer, after the model is built.
+
+        Weights come from a separate generator (config.ctx_seed), and the global RNG is restored
+        afterwards, so every baseline parameter keeps its byte-identical value for the same seed.
+        """
+        g = torch.Generator().manual_seed(config.ctx_seed)
+        with torch.random.fork_rng(devices=[]):
+            for m in self.moe_layers():
+                if m.window >= 1:
+                    m.router_ctx_norm = RMSNorm(config.n_embd, eps=1e-6)
+                    m.router_ctx = nn.Linear(config.n_embd, config.n_exp, bias=False)
+                    m.router_ctx.weight.normal_(0.0, 0.02, generator=g)
 
     # ---- MoE helpers ----
 
@@ -247,6 +279,22 @@ class GPT(nn.Module):
     def load_fractions(self):
         """Per-layer load fraction f (detached), shape [n_layer, n_exp]."""
         return torch.stack([m.f for m in self.moe_layers()])
+
+    def router_param_names(self):
+        """Names of all router parameters: router_norm, router, and the context router if present."""
+        return [n for n, _ in self.named_parameters() if ".moe.router" in n]
+
+    @torch.no_grad()
+    def router_grad_norms(self):
+        """Per-layer L2 norm of the router parameters' gradients, shape [n_layer] (call before clipping)."""
+        norms = []
+        for m in self.moe_layers():
+            params = [m.router_norm.weight, m.router.weight]
+            if m.router_ctx is not None:
+                params += [m.router_ctx_norm.weight, m.router_ctx.weight]
+            grads = [p.grad.float().norm() for p in params if p.grad is not None]
+            norms.append(torch.stack(grads).norm() if grads else torch.zeros(()))
+        return torch.stack(norms)
 
     def reset_load_buffers(self):
         """Clear the pooled load counts; call after every optimizer step."""
@@ -298,14 +346,20 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1))
         return logits, loss
 
-    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
-        params = [p for p in self.parameters() if p.requires_grad]
-        decay = [p for p in params if p.dim() >= 2]
-        no_decay = [p for p in params if p.dim() < 2]
-        groups = [
-            {"params": decay, "weight_decay": weight_decay},
-            {"params": no_decay, "weight_decay": 0.0},
-        ]
+    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type, router_lr_mult=1.0):
+        """AdamW with decay on params with dim >= 2 only. Router parameters get their own groups
+        (same decay split) whose lr is scaled by router_lr_mult; every group carries "lr_mult"."""
+        router = set(self.router_param_names())
+        named = [(n, p) for n, p in self.named_parameters() if p.requires_grad]
+        groups = []
+        for is_router, mult in ((False, 1.0), (True, float(router_lr_mult))):
+            params = [p for n, p in named if (n in router) == is_router]
+            groups += [
+                {"params": [p for p in params if p.dim() >= 2], "weight_decay": weight_decay,
+                 "lr": learning_rate * mult, "lr_mult": mult, "router": is_router},
+                {"params": [p for p in params if p.dim() < 2], "weight_decay": 0.0,
+                 "lr": learning_rate * mult, "lr_mult": mult, "router": is_router},
+            ]
         use_fused = device_type == "cuda" and "fused" in inspect.signature(torch.optim.AdamW).parameters
         extra = dict(fused=True) if use_fused else dict()
         return torch.optim.AdamW(groups, lr=learning_rate, betas=betas, **extra)
