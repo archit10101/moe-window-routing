@@ -60,7 +60,7 @@ def test_generated_configs_are_current(tmp_path):
         (out / f"{name}.py").write_text(make_configs.render(name, spec))
         committed = open(os.path.join(REPO, "config", "runs", f"{name}.py")).read()
         assert committed == (out / f"{name}.py").read_text(), f"config/runs/{name}.py is stale"
-    assert set(make_configs.runs()) == set(EXPECTED) | set(FOLLOWUP)
+    assert set(make_configs.runs()) == set(EXPECTED) | set(FOLLOWUP) | set(M2D2) | set(SLIM120)
 
 
 def test_new_configs(config_tree):
@@ -104,3 +104,55 @@ def test_cli_override_and_unknown_key(config_tree):
     assert cfg["benchmark_steps"] == 30 and cfg["data_dir"] == "/x"
     with pytest.raises(ValueError, match="Unknown config key"):
         T.load_config(["config/runs/smoke-gpu-base.py", "--not_a_key=1"])
+
+
+# docs/M2D2_PROMPT.md part 6: name -> (window_layers, seed, lr, eval_split, total_tokens)
+M2D2_DATA = "/home/architta/orcd/scratch/moe-pilot/data_m2d2w8"
+SLIM_DATA = "/home/architta/orcd/scratch/moe-pilot/data"
+W1 = [0, 0, 0, 0, 1, 1, 1, 1]
+W64 = [0, 0, 0, 0, 64, 64, 64, 64]
+M2D2 = {
+    **{f"m2d2-lr-base-{s}": (B, 0, v, "calib", 30 * M) for s, v in (("2.5e-4", 2.5e-4), ("5e-4", 5e-4), ("1e-3", 1e-3))},
+    **{f"m2d2-lr-win16-{s}": (W16, 0, v, "calib", 30 * M) for s, v in (("2.5e-4", 2.5e-4), ("5e-4", 5e-4), ("1e-3", 1e-3))},
+    **{f"m2d2-base-s{s}": (B, s, "LR_BASE", "val", 120 * M) for s in range(5)},
+    **{f"m2d2-win16-s{s}": (W16, s, "LR_WIN", "val", 120 * M) for s in range(5)},
+    "m2d2-win1-s0": (W1, 0, "LR_BASE", "val", 120 * M),
+    "m2d2-win64-s0": (W64, 0, "LR_WIN", "val", 120 * M),
+}
+SLIM120 = {**{f"slim120-base-s{s}": (B, s, 5e-4, "val", 120 * M) for s in range(3)},
+           **{f"slim120-win16-s{s}": (W16, s, 5e-4, "val", 120 * M) for s in range(3)}}
+
+
+def test_m2d2_and_slim120_configs(config_tree):
+    assert len(M2D2) + len(SLIM120) == 24
+    # different numbers in the two LR files: M2D2 configs must read only chosen_lr_m2d2.py
+    (config_tree / "config" / "chosen_lr_m2d2.py").write_text("LR_BASE = 0.0007\nLR_WIN = 0.0003\n")
+    lrs = {"LR_BASE": 0.0007, "LR_WIN": 0.0003}
+    base = T.default_config()
+    for table, data_dir in ((M2D2, M2D2_DATA), (SLIM120, SLIM_DATA)):
+        for name, (windows, seed, lr, split, tokens) in table.items():
+            cfg = T.load_config([f"config/runs/{name}.py"])
+            want = dict(base, run_name=name, window_layers=windows, seed=seed, lr=lrs.get(lr, lr), eval_split=split,
+                        total_tokens=tokens, data_dir=data_dir, eval_interval=100)
+            diff = {k: (cfg[k], want[k]) for k in want if cfg[k] != want[k]}
+            assert not diff, f"{name}: {diff}"
+            text = (config_tree / "config" / "runs" / f"{name}.py").read_text()
+            assert "chosen_lr.py'" not in text, name  # never the SlimPajama LR file
+            if name.startswith("m2d2-"):
+                assert "config/pilot_m2d2.py" in text
+            _, steps, _ = T.derived(cfg)
+            assert steps == {120 * M: 1832, 30 * M: 458}[tokens]
+
+
+def test_m2d2_main_configs_stop_until_both_lrs_set(config_tree):
+    lr_file = config_tree / "config" / "chosen_lr_m2d2.py"
+    for text in ("LR_BASE = None\nLR_WIN = None\n", "LR_BASE = 0.0005\nLR_WIN = None\n"):
+        lr_file.write_text(text)
+        for name in ("m2d2-base-s0", "m2d2-win16-s0", "m2d2-win1-s0"):
+            with pytest.raises(SystemExit, match="not both set"):
+                T.load_config([f"config/runs/{name}.py"])
+    # the committed file starts with both unset, and the SlimPajama LR file is untouched by all of this
+    import os
+    committed = open(os.path.join(REPO, "config", "chosen_lr_m2d2.py")).read()
+    assert "LR_BASE = None" in committed and "LR_WIN = None" in committed
+    assert (config_tree / "config" / "chosen_lr.py").read_text() == "LR_BASE = 0.0011\nLR_WIN = 0.0022\n"
