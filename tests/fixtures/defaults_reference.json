@@ -1,0 +1,544 @@
+{
+ "torch_version": "2.15.0",
+ "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+ "init": {
+  "baseline": {
+   "transformer.wte.weight": "599422ff0c5334024e9ad5da18249913d496305ec6503c3c1efbf2c0e6baf8f7",
+   "transformer.wpe.weight": "9d1456d3120ddeb35d2a47488801ac05d940d6235671ae326e45df46ac4d7a4f",
+   "transformer.h.0.ln_1.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.0.attn.c_attn.weight": "d964f9914231b9d1e9373cbd8a4b1f2d79a0327fba584eb6f115a50e998cd0d3",
+   "transformer.h.0.attn.c_proj.weight": "32fd47cfb07094ca77242616cf5f4c810f6a055428144e5827aafc16d2c2a763",
+   "transformer.h.0.ln_2.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.0.moe.router_norm.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.0.moe.router.weight": "b84847dc7cc59247abd11b7f3cf7944e2210c9574106c805e67a9867ec676dfc",
+   "transformer.h.0.moe.shared.w_gate.weight": "95615a0e3e2e17798f3dfb10d56b516ca4f507c554c9a868945f1be170d84968",
+   "transformer.h.0.moe.shared.w_up.weight": "0da96c6cd3c1f4daf2dd5d1628fca1e21c0cbe8aa8d578d317714d75c1830bc0",
+   "transformer.h.0.moe.shared.w_down.weight": "c13daf53904a61bb29f7cbc177c945094b04338812d98653ff626c6b98b1bb5e",
+   "transformer.h.0.moe.experts.0.w_gate.weight": "8239d12919b7ca866eb4c18851855a8fd440b22d8a30ee89f338f212a4c52c0f",
+   "transformer.h.0.moe.experts.0.w_up.weight": "587d42f82a0d13516d1d8e2fa2fa56b1c76c8c718d24f131fe75acae307d5904",
+   "transformer.h.0.moe.experts.0.w_down.weight": "3d9597940466c03be734049c44432b863878c23a44d1631c88f55875f21f1226",
+   "transformer.h.0.moe.experts.1.w_gate.weight": "d41cb47e245b865e9f62702763ff36fdd5151c3280cfed50753d0fc7d42be8ae",
+   "transformer.h.0.moe.experts.1.w_up.weight": "92f9599f370e260f1430bb1511d49d3f1a24bf2301de6b169e4680708aee9734",
+   "transformer.h.0.moe.experts.1.w_down.weight": "8dd117559b2a77f2637a57513bdbbdadf2b25f1e97f4cb7b9b76e00275210abe",
+   "transformer.h.0.moe.experts.2.w_gate.weight": "b3e3f074ca3a9aaa99e6a77c57c08a32b305e60d2ca933e0f174f139bbb3004e",
+   "transformer.h.0.moe.experts.2.w_up.weight": "401f0e7682f3b3cfdb3e76d09c74c931f37a2b519c513a9600b0eb89a264dc79",
+   "transformer.h.0.moe.experts.2.w_down.weight": "51fbbd31fbfea3de363807943bfbd7da6c56a084372826b705b0a623f45cf92c",
+   "transformer.h.0.moe.experts.3.w_gate.weight": "3a47121541e6623e47268c69486eb27b48dfcde34e570d083bccc9e999c59d08",
+   "transformer.h.0.moe.experts.3.w_up.weight": "f119f5ce2f598277df074e08dbfcaf3921f56ae031ddbd4013ad9e8b13047f3e",
+   "transformer.h.0.moe.experts.3.w_down.weight": "02f58f278a6b646ef4ce37ed1fb6e1be520716243ed4cc94958137072734c7b0",
+   "transformer.h.1.ln_1.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.1.attn.c_attn.weight": "7bf7fe4685d03b48a34b1808d94d48ab88a11df2f7e53e9b55187feced2e5339",
+   "transformer.h.1.attn.c_proj.weight": "be36939312114a2aba1437026ca1fedbccfa1f457d0ea24662142c487a79ba1a",
+   "transformer.h.1.ln_2.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.1.moe.router_norm.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.1.moe.router.weight": "3f5961208d17cc64fbc94eaeeea7b3759a97248c31625355118cd9a659a9ff95",
+   "transformer.h.1.moe.shared.w_gate.weight": "f11edc7c479bf10d7394801bb358b48aa4b389b9a48f9e631a18f713edc49871",
+   "transformer.h.1.moe.shared.w_up.weight": "2636ae60fc04062e3ccf2eee7d1aa59afaba2915d20c161e1e2c42b9052bedd1",
+   "transformer.h.1.moe.shared.w_down.weight": "ae9516844c012c715b748e22aad4606accb0b3e51f7db04e2c6bff7f67c60ada",
+   "transformer.h.1.moe.experts.0.w_gate.weight": "f5c3e1e73771daa05546f75d3916a6b2053c3dd3fcb9ac6442451f78c8c89e4d",
+   "transformer.h.1.moe.experts.0.w_up.weight": "5eedac971c6fa38471e81458018603b5621e7d39d1a6a58f5507ec49301264e0",
+   "transformer.h.1.moe.experts.0.w_down.weight": "4faa1e687ea26838f552d2c6963b20d934e08355e319edb27e274050a7973183",
+   "transformer.h.1.moe.experts.1.w_gate.weight": "a891e78519930a25ca09c57aca9a1bb3f80cbacfd4e7ea1d875986ecc57444fb",
+   "transformer.h.1.moe.experts.1.w_up.weight": "6590c14a9de61b6c39a8abad0be0b9afe9ae04e77b009b3806d7bc9a12095ead",
+   "transformer.h.1.moe.experts.1.w_down.weight": "ec8e911c9f913c65aa3db5b025f9b43bbdaa8777cd0a0223469afeea21f9a2fd",
+   "transformer.h.1.moe.experts.2.w_gate.weight": "b2ebb83c5e07a18544f1e58efb90359d942549fccd5b90e6e50047075d52f174",
+   "transformer.h.1.moe.experts.2.w_up.weight": "f86b724f2f0c7c5364e99f4e9133c01db6034d797a368f1b81c32543afb04047",
+   "transformer.h.1.moe.experts.2.w_down.weight": "574a1e3b5b71d71aecbcd30ad26fd75265b3f10fa73564ee19bd84d70c4d5253",
+   "transformer.h.1.moe.experts.3.w_gate.weight": "bf21039afa95542dbbdba1decd1d9ca0c65557cadc899fabd79010154a2cca6c",
+   "transformer.h.1.moe.experts.3.w_up.weight": "d312f7fc4742f736ad67081f89adec8f9b0c5c585090ddeb9d4134b29fc73c8c",
+   "transformer.h.1.moe.experts.3.w_down.weight": "f33c230d2f90365d0d85c393e7bc1f5da8f6c42bce2a1a473b07924ff938242f",
+   "transformer.ln_f.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "lm_head.weight": "599422ff0c5334024e9ad5da18249913d496305ec6503c3c1efbf2c0e6baf8f7"
+  },
+  "window": {
+   "transformer.wte.weight": "599422ff0c5334024e9ad5da18249913d496305ec6503c3c1efbf2c0e6baf8f7",
+   "transformer.wpe.weight": "9d1456d3120ddeb35d2a47488801ac05d940d6235671ae326e45df46ac4d7a4f",
+   "transformer.h.0.ln_1.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.0.attn.c_attn.weight": "d964f9914231b9d1e9373cbd8a4b1f2d79a0327fba584eb6f115a50e998cd0d3",
+   "transformer.h.0.attn.c_proj.weight": "32fd47cfb07094ca77242616cf5f4c810f6a055428144e5827aafc16d2c2a763",
+   "transformer.h.0.ln_2.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.0.moe.router_norm.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.0.moe.router.weight": "b84847dc7cc59247abd11b7f3cf7944e2210c9574106c805e67a9867ec676dfc",
+   "transformer.h.0.moe.shared.w_gate.weight": "95615a0e3e2e17798f3dfb10d56b516ca4f507c554c9a868945f1be170d84968",
+   "transformer.h.0.moe.shared.w_up.weight": "0da96c6cd3c1f4daf2dd5d1628fca1e21c0cbe8aa8d578d317714d75c1830bc0",
+   "transformer.h.0.moe.shared.w_down.weight": "c13daf53904a61bb29f7cbc177c945094b04338812d98653ff626c6b98b1bb5e",
+   "transformer.h.0.moe.experts.0.w_gate.weight": "8239d12919b7ca866eb4c18851855a8fd440b22d8a30ee89f338f212a4c52c0f",
+   "transformer.h.0.moe.experts.0.w_up.weight": "587d42f82a0d13516d1d8e2fa2fa56b1c76c8c718d24f131fe75acae307d5904",
+   "transformer.h.0.moe.experts.0.w_down.weight": "3d9597940466c03be734049c44432b863878c23a44d1631c88f55875f21f1226",
+   "transformer.h.0.moe.experts.1.w_gate.weight": "d41cb47e245b865e9f62702763ff36fdd5151c3280cfed50753d0fc7d42be8ae",
+   "transformer.h.0.moe.experts.1.w_up.weight": "92f9599f370e260f1430bb1511d49d3f1a24bf2301de6b169e4680708aee9734",
+   "transformer.h.0.moe.experts.1.w_down.weight": "8dd117559b2a77f2637a57513bdbbdadf2b25f1e97f4cb7b9b76e00275210abe",
+   "transformer.h.0.moe.experts.2.w_gate.weight": "b3e3f074ca3a9aaa99e6a77c57c08a32b305e60d2ca933e0f174f139bbb3004e",
+   "transformer.h.0.moe.experts.2.w_up.weight": "401f0e7682f3b3cfdb3e76d09c74c931f37a2b519c513a9600b0eb89a264dc79",
+   "transformer.h.0.moe.experts.2.w_down.weight": "51fbbd31fbfea3de363807943bfbd7da6c56a084372826b705b0a623f45cf92c",
+   "transformer.h.0.moe.experts.3.w_gate.weight": "3a47121541e6623e47268c69486eb27b48dfcde34e570d083bccc9e999c59d08",
+   "transformer.h.0.moe.experts.3.w_up.weight": "f119f5ce2f598277df074e08dbfcaf3921f56ae031ddbd4013ad9e8b13047f3e",
+   "transformer.h.0.moe.experts.3.w_down.weight": "02f58f278a6b646ef4ce37ed1fb6e1be520716243ed4cc94958137072734c7b0",
+   "transformer.h.1.ln_1.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.1.attn.c_attn.weight": "7bf7fe4685d03b48a34b1808d94d48ab88a11df2f7e53e9b55187feced2e5339",
+   "transformer.h.1.attn.c_proj.weight": "be36939312114a2aba1437026ca1fedbccfa1f457d0ea24662142c487a79ba1a",
+   "transformer.h.1.ln_2.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.1.moe.router_norm.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "transformer.h.1.moe.router.weight": "3f5961208d17cc64fbc94eaeeea7b3759a97248c31625355118cd9a659a9ff95",
+   "transformer.h.1.moe.shared.w_gate.weight": "f11edc7c479bf10d7394801bb358b48aa4b389b9a48f9e631a18f713edc49871",
+   "transformer.h.1.moe.shared.w_up.weight": "2636ae60fc04062e3ccf2eee7d1aa59afaba2915d20c161e1e2c42b9052bedd1",
+   "transformer.h.1.moe.shared.w_down.weight": "ae9516844c012c715b748e22aad4606accb0b3e51f7db04e2c6bff7f67c60ada",
+   "transformer.h.1.moe.experts.0.w_gate.weight": "f5c3e1e73771daa05546f75d3916a6b2053c3dd3fcb9ac6442451f78c8c89e4d",
+   "transformer.h.1.moe.experts.0.w_up.weight": "5eedac971c6fa38471e81458018603b5621e7d39d1a6a58f5507ec49301264e0",
+   "transformer.h.1.moe.experts.0.w_down.weight": "4faa1e687ea26838f552d2c6963b20d934e08355e319edb27e274050a7973183",
+   "transformer.h.1.moe.experts.1.w_gate.weight": "a891e78519930a25ca09c57aca9a1bb3f80cbacfd4e7ea1d875986ecc57444fb",
+   "transformer.h.1.moe.experts.1.w_up.weight": "6590c14a9de61b6c39a8abad0be0b9afe9ae04e77b009b3806d7bc9a12095ead",
+   "transformer.h.1.moe.experts.1.w_down.weight": "ec8e911c9f913c65aa3db5b025f9b43bbdaa8777cd0a0223469afeea21f9a2fd",
+   "transformer.h.1.moe.experts.2.w_gate.weight": "b2ebb83c5e07a18544f1e58efb90359d942549fccd5b90e6e50047075d52f174",
+   "transformer.h.1.moe.experts.2.w_up.weight": "f86b724f2f0c7c5364e99f4e9133c01db6034d797a368f1b81c32543afb04047",
+   "transformer.h.1.moe.experts.2.w_down.weight": "574a1e3b5b71d71aecbcd30ad26fd75265b3f10fa73564ee19bd84d70c4d5253",
+   "transformer.h.1.moe.experts.3.w_gate.weight": "bf21039afa95542dbbdba1decd1d9ca0c65557cadc899fabd79010154a2cca6c",
+   "transformer.h.1.moe.experts.3.w_up.weight": "d312f7fc4742f736ad67081f89adec8f9b0c5c585090ddeb9d4134b29fc73c8c",
+   "transformer.h.1.moe.experts.3.w_down.weight": "f33c230d2f90365d0d85c393e7bc1f5da8f6c42bce2a1a473b07924ff938242f",
+   "transformer.ln_f.weight": "2f20cd03c9cd392a406c56232b0ff93a15f6d6d7da79086bfa14f55d4a4031b0",
+   "lm_head.weight": "599422ff0c5334024e9ad5da18249913d496305ec6503c3c1efbf2c0e6baf8f7"
+  }
+ },
+ "train": {
+  "baseline": {
+   "steps": [
+    {
+     "step": 1,
+     "ce": 6.936075687408447,
+     "aux": 2.0007476806640625,
+     "z": 3.9091453552246094,
+     "grad_norm": 0.3644467294216156,
+     "lr": 0.003,
+     "load_max": [
+      0.26171875,
+      0.27587890625
+     ],
+     "load_min": [
+      0.24462890625,
+      0.23486328125
+     ]
+    },
+    {
+     "step": 2,
+     "ce": 6.936310768127441,
+     "aux": 2.0025970935821533,
+     "z": 3.8864705562591553,
+     "grad_norm": 0.36134466528892517,
+     "lr": 0.003,
+     "load_max": [
+      0.2646484375,
+      0.27783203125
+     ],
+     "load_min": [
+      0.23095703125,
+      0.203125
+     ]
+    },
+    {
+     "step": 3,
+     "ce": 6.939067840576172,
+     "aux": 2.0240964889526367,
+     "z": 3.7716054916381836,
+     "grad_norm": 0.3589242994785309,
+     "lr": 0.0028972373688902374,
+     "load_max": [
+      0.2685546875,
+      0.34375
+     ],
+     "load_min": [
+      0.23291015625,
+      0.13623046875
+     ]
+    },
+    {
+     "step": 4,
+     "ce": 6.939250469207764,
+     "aux": 2.0401692390441895,
+     "z": 3.6051344871520996,
+     "grad_norm": 0.34608012437820435,
+     "lr": 0.002604594154601839,
+     "load_max": [
+      0.27197265625,
+      0.390625
+     ],
+     "load_min": [
+      0.21826171875,
+      0.10009765625
+     ]
+    },
+    {
+     "step": 5,
+     "ce": 6.920600891113281,
+     "aux": 2.021886110305786,
+     "z": 3.4642672538757324,
+     "grad_norm": 0.3297565281391144,
+     "lr": 0.0021666226336928716,
+     "load_max": [
+      0.30126953125,
+      0.36865234375
+     ],
+     "load_min": [
+      0.19775390625,
+      0.10791015625
+     ]
+    },
+    {
+     "step": 6,
+     "ce": 6.943224906921387,
+     "aux": 2.013416051864624,
+     "z": 3.4093832969665527,
+     "grad_norm": 0.3231070637702942,
+     "lr": 0.00165,
+     "load_max": [
+      0.2763671875,
+      0.337890625
+     ],
+     "load_min": [
+      0.1923828125,
+      0.1474609375
+     ]
+    },
+    {
+     "step": 7,
+     "ce": 6.945115089416504,
+     "aux": 2.0164847373962402,
+     "z": 3.289994955062866,
+     "grad_norm": 0.3218897879123688,
+     "lr": 0.0011333773663071288,
+     "load_max": [
+      0.2958984375,
+      0.34716796875
+     ],
+     "load_min": [
+      0.1923828125,
+      0.109375
+     ]
+    },
+    {
+     "step": 8,
+     "ce": 6.94105339050293,
+     "aux": 2.0164289474487305,
+     "z": 3.1566097736358643,
+     "grad_norm": 0.31747525930404663,
+     "lr": 0.000695405845398161,
+     "load_max": [
+      0.2998046875,
+      0.3466796875
+     ],
+     "load_min": [
+      0.1865234375,
+      0.1337890625
+     ]
+    },
+    {
+     "step": 9,
+     "ce": 6.93739652633667,
+     "aux": 2.0112969875335693,
+     "z": 3.1054224967956543,
+     "grad_norm": 0.30607110261917114,
+     "lr": 0.00040276263110976295,
+     "load_max": [
+      0.29150390625,
+      0.33837890625
+     ],
+     "load_min": [
+      0.19482421875,
+      0.16748046875
+     ]
+    },
+    {
+     "step": 10,
+     "ce": 6.934149742126465,
+     "aux": 2.01157283782959,
+     "z": 3.081916332244873,
+     "grad_norm": 0.30620837211608887,
+     "lr": 0.00030000000000000003,
+     "load_max": [
+      0.2822265625,
+      0.33740234375
+     ],
+     "load_min": [
+      0.19921875,
+      0.15966796875
+     ]
+    }
+   ],
+   "final": {
+    "val": {
+     "book": 6.944077968597412,
+     "c4": 6.945638418197632,
+     "github": 6.935310363769531
+    },
+    "val_overall": 6.942383956909179
+   },
+   "final_weights": {
+    "transformer.wte.weight": "200cffe02611030b83b10886706c1c05778539bff6a28f90bbf5ee64af369074",
+    "transformer.wpe.weight": "2ed9b63d3408b59d80f58c83f79ac34ae4c31f28dc49995858a2ec8f6a829c40",
+    "transformer.h.0.ln_1.weight": "99421355d1618f0354b0b3f94d192740fbc05fd3ae9f1c6c63ff9f86a42e4e07",
+    "transformer.h.0.attn.c_attn.weight": "0479ad5b8988d5ebe1341a61fb4a002ea95ded735ac31f7b6f6de8acbba1be1a",
+    "transformer.h.0.attn.c_proj.weight": "e35a88a7a16264593c2cb967232856386cd3f7d1bab8bd5e6a1d721fe7ecb6f3",
+    "transformer.h.0.ln_2.weight": "187f25f81b6d0e339cf504aa0e241fbba083c4e3c38a6a92e2f438b9c914b8ab",
+    "transformer.h.0.moe.router_norm.weight": "11ef86d228a08ae1e4ddc53ea040126cfb734c3ba50b6b411c1646fa896ec0f4",
+    "transformer.h.0.moe.router.weight": "24af443e1a24bca3a4808dce2710570358198dfe42288c603257b26595dd8778",
+    "transformer.h.0.moe.shared.w_gate.weight": "604392ab80d4b1fe70c6e8a2c65bfa50a99a72a87bc82ac51f205b2d728b5c40",
+    "transformer.h.0.moe.shared.w_up.weight": "81a489dcc63417174e73d0f91ba77c826874199daa175a83666cac295e50a6c1",
+    "transformer.h.0.moe.shared.w_down.weight": "2e5201dce0c7c09b10053d6e78931a02cb1d6d4298beda69f63c4e073adb28f3",
+    "transformer.h.0.moe.experts.0.w_gate.weight": "59fa9f02db9b894105098ec6a6387724b657ab89b3ef8e168289f2a8ae153805",
+    "transformer.h.0.moe.experts.0.w_up.weight": "8f60a4face488dbc54f6439fa461d2714fd13adb3ff0a1dd051d654b752b9297",
+    "transformer.h.0.moe.experts.0.w_down.weight": "e0d3e980578506000ca865d5efa7cb5a348563960ad172ed851eed07eaf218e3",
+    "transformer.h.0.moe.experts.1.w_gate.weight": "4db32df5d76d059ea5f3fdb563d3631b3c6724c12252419bd64a66e6d56d2a61",
+    "transformer.h.0.moe.experts.1.w_up.weight": "2be8ca757bde0a590a1aca5fd40d4d7b2cbb086a50665304a22139082c6fe7f5",
+    "transformer.h.0.moe.experts.1.w_down.weight": "e30f3b9a1430e907cf09317257d0994945b6a812c81128e32944cb35dd410ba1",
+    "transformer.h.0.moe.experts.2.w_gate.weight": "5ca794b90bb3507c654dd95b93db6ee36b51132b801586b396a194e43b40342d",
+    "transformer.h.0.moe.experts.2.w_up.weight": "23bcf85d0d65af1c02905154f5de44c5a3f3c46cc0236df763b794ea0d385b0f",
+    "transformer.h.0.moe.experts.2.w_down.weight": "044eaffa20824526e2d1887af78e3a44b2c47a9f887b35482fe2c213f079093b",
+    "transformer.h.0.moe.experts.3.w_gate.weight": "601aa56f2f3f31d32c6452f663f851aed2f14762b8edcd6c3cf900ef4149adaf",
+    "transformer.h.0.moe.experts.3.w_up.weight": "5ec3f1bbae58d1200df905e15799f5cd944b0e99498baac7f1dd1130071db050",
+    "transformer.h.0.moe.experts.3.w_down.weight": "230ffa7c846d52835f233c6a14d260683788bec81e19a13bf809b3d68d3718e3",
+    "transformer.h.1.ln_1.weight": "13dff9d4705db28635fb7f3d7f9055c57131399e90465d0802df481aca90e6e9",
+    "transformer.h.1.attn.c_attn.weight": "15480c69bb9be61056e6fc013ad5e6bda1cf608e7afbde25fcaaaa073b3ac761",
+    "transformer.h.1.attn.c_proj.weight": "3c5500dc5cfa3f2f96feceff5d8bfc5f381be0ffdc0ce5e0a118948e00110327",
+    "transformer.h.1.ln_2.weight": "9e47044cf393a6fa4c5ac01566be964accbe419877c16001f9b581b19f0fffe2",
+    "transformer.h.1.moe.router_norm.weight": "ebeac7aa26218f50fb3b883d74e86e47080c98c62f5e99b26f70da5538d23db9",
+    "transformer.h.1.moe.router.weight": "2eb0092ce9d62936d03875e64ed0a0619cf0333929697c48fbee379dac7cbfe5",
+    "transformer.h.1.moe.shared.w_gate.weight": "fb508022f838ca6a0bb3c2ee05f130496412e85f186089ca56f5e979cf47df8f",
+    "transformer.h.1.moe.shared.w_up.weight": "dd89dbd952963e6e266e70e6495ee87e09e57440cacb7bdd719e994ad468e6e3",
+    "transformer.h.1.moe.shared.w_down.weight": "867160b170ca5f252a967b62bbcdedbeb1868b772cefe18102ebb88ddf529ba5",
+    "transformer.h.1.moe.experts.0.w_gate.weight": "18d07cfc409977ba57422131221ce59a6d060a5e6edfbc9d56ba71e309f7a3f2",
+    "transformer.h.1.moe.experts.0.w_up.weight": "692c7b1cd32411e467bcab737df3c067d432a30da45eddaf5dbc215ee7bc4b20",
+    "transformer.h.1.moe.experts.0.w_down.weight": "35a2b773f57756ee8f75198327ec6ef6b281ac931d3615518dadb1646735d392",
+    "transformer.h.1.moe.experts.1.w_gate.weight": "a290297339f38a3fde0f130d75e1f103ba2c2eae115200b0ad0cabe39833880c",
+    "transformer.h.1.moe.experts.1.w_up.weight": "2776d12d49dc849be5c7908fb34c8b10b4cc173ee268277019e4ed92ba082012",
+    "transformer.h.1.moe.experts.1.w_down.weight": "3cdb9c1f4001105eed5c9232e7e479c447db6af414c628cb6f746aba6e198e1d",
+    "transformer.h.1.moe.experts.2.w_gate.weight": "cf15f4e4cca7329a84b9817714e8f3224eb388ea8c2e49152d0402be4e4f75f2",
+    "transformer.h.1.moe.experts.2.w_up.weight": "848b3da36e0e3477e6baf5e12ca11c05a85f5637572c9f2cf5a3018a4cafa645",
+    "transformer.h.1.moe.experts.2.w_down.weight": "96eea98d0eee94ed522c65133e1dcb83f43a2a30adc7f2c7a52cd7c5a5ec3ff6",
+    "transformer.h.1.moe.experts.3.w_gate.weight": "3ab5da45de000d52a7562224a4de8f79d2240f5632dda51d707aa48340cdddce",
+    "transformer.h.1.moe.experts.3.w_up.weight": "0e0a8385fa788b9e793b85e13f45abdbd0c39a38e373e056797547756fbdb97b",
+    "transformer.h.1.moe.experts.3.w_down.weight": "5c41fbe12bc3e58e5412260e6b1628dd54988e6618147a44365ec9b5667ae2c2",
+    "transformer.ln_f.weight": "5003ddc83f81c77e34e6404f35f23f9cc363c8ccf5f99b3dcada7b5e3b01c69f",
+    "lm_head.weight": "200cffe02611030b83b10886706c1c05778539bff6a28f90bbf5ee64af369074"
+   }
+  },
+  "window": {
+   "steps": [
+    {
+     "step": 1,
+     "ce": 6.935973644256592,
+     "aux": 2.002455234527588,
+     "z": 3.9163761138916016,
+     "grad_norm": 0.3642600178718567,
+     "lr": 0.003,
+     "load_max": [
+      0.26171875,
+      0.28759765625
+     ],
+     "load_min": [
+      0.24462890625,
+      0.21435546875
+     ]
+    },
+    {
+     "step": 2,
+     "ce": 6.936304569244385,
+     "aux": 2.0068023204803467,
+     "z": 3.884627342224121,
+     "grad_norm": 0.36127227544784546,
+     "lr": 0.003,
+     "load_max": [
+      0.2666015625,
+      0.31201171875
+     ],
+     "load_min": [
+      0.23046875,
+      0.18408203125
+     ]
+    },
+    {
+     "step": 3,
+     "ce": 6.939510822296143,
+     "aux": 2.050832748413086,
+     "z": 3.718169927597046,
+     "grad_norm": 0.3593156933784485,
+     "lr": 0.0028972373688902374,
+     "load_max": [
+      0.26708984375,
+      0.3896484375
+     ],
+     "load_min": [
+      0.2333984375,
+      0.09619140625
+     ]
+    },
+    {
+     "step": 4,
+     "ce": 6.939395904541016,
+     "aux": 2.028425693511963,
+     "z": 3.565462112426758,
+     "grad_norm": 0.34714415669441223,
+     "lr": 0.002604594154601839,
+     "load_max": [
+      0.2734375,
+      0.39111328125
+     ],
+     "load_min": [
+      0.22265625,
+      0.08837890625
+     ]
+    },
+    {
+     "step": 5,
+     "ce": 6.920171737670898,
+     "aux": 2.0154075622558594,
+     "z": 3.4233827590942383,
+     "grad_norm": 0.33033859729766846,
+     "lr": 0.0021666226336928716,
+     "load_max": [
+      0.29541015625,
+      0.3779296875
+     ],
+     "load_min": [
+      0.201171875,
+      0.12255859375
+     ]
+    },
+    {
+     "step": 6,
+     "ce": 6.943767547607422,
+     "aux": 2.024656295776367,
+     "z": 3.38468074798584,
+     "grad_norm": 0.32501575350761414,
+     "lr": 0.00165,
+     "load_max": [
+      0.27392578125,
+      0.41015625
+     ],
+     "load_min": [
+      0.1962890625,
+      0.08984375
+     ]
+    },
+    {
+     "step": 7,
+     "ce": 6.945163726806641,
+     "aux": 2.0166659355163574,
+     "z": 3.261624336242676,
+     "grad_norm": 0.32293784618377686,
+     "lr": 0.0011333773663071288,
+     "load_max": [
+      0.296875,
+      0.37353515625
+     ],
+     "load_min": [
+      0.1884765625,
+      0.10888671875
+     ]
+    },
+    {
+     "step": 8,
+     "ce": 6.940930366516113,
+     "aux": 2.008641242980957,
+     "z": 3.140650749206543,
+     "grad_norm": 0.318695992231369,
+     "lr": 0.000695405845398161,
+     "load_max": [
+      0.291015625,
+      0.30908203125
+     ],
+     "load_min": [
+      0.1884765625,
+      0.126953125
+     ]
+    },
+    {
+     "step": 9,
+     "ce": 6.937706470489502,
+     "aux": 2.006728172302246,
+     "z": 3.0921692848205566,
+     "grad_norm": 0.3079620897769928,
+     "lr": 0.00040276263110976295,
+     "load_max": [
+      0.29052734375,
+      0.35302734375
+     ],
+     "load_min": [
+      0.18798828125,
+      0.1748046875
+     ]
+    },
+    {
+     "step": 10,
+     "ce": 6.934971332550049,
+     "aux": 2.0034825801849365,
+     "z": 3.07058048248291,
+     "grad_norm": 0.30784544348716736,
+     "lr": 0.00030000000000000003,
+     "load_max": [
+      0.28125,
+      0.3017578125
+     ],
+     "load_min": [
+      0.1953125,
+      0.20947265625
+     ]
+    }
+   ],
+   "final": {
+    "val": {
+     "book": 6.945063829421997,
+     "c4": 6.945467233657837,
+     "github": 6.93532657623291
+    },
+    "val_overall": 6.9423846960067745
+   },
+   "final_weights": {
+    "transformer.wte.weight": "74fd63a0a2bae918b6df7bd7d4a488b6363f90c812d8a4fe10d891f6d356933e",
+    "transformer.wpe.weight": "91b814cfa0b786cd6c28dd6ba8bca528572429aac50eabc8a6a7336b1d406ed4",
+    "transformer.h.0.ln_1.weight": "37fbd072cb69aea27ccb04f3eb6736e62d991dd32428e36ed25f94c6106fafa6",
+    "transformer.h.0.attn.c_attn.weight": "079e53c35b056fbbce699bd81bdac5763a9779e0a40cd17927bcf14b85806e2a",
+    "transformer.h.0.attn.c_proj.weight": "2fd8034b7c9c96adcfd600b1b08795f60d1423b1d843ed9a6b7dad7b604b4d06",
+    "transformer.h.0.ln_2.weight": "e999d07aa2cc381fd27873a6e4bdefcbd89937afa62299a78ab451e731b8dd56",
+    "transformer.h.0.moe.router_norm.weight": "1395ecb217075c23ea942d982baa9f22d04b8d4feab8e606c793e76c86fc698e",
+    "transformer.h.0.moe.router.weight": "7d78b9a8321212199a79fb16c599ebd0ef8735269e7b2444979c16473c61047f",
+    "transformer.h.0.moe.shared.w_gate.weight": "6da298795674747a4b448c2e66604006de35be1cf034534c146c100f8b43d26b",
+    "transformer.h.0.moe.shared.w_up.weight": "9c4a3157d48e1d7fe76d4ac7d3c8971f13bc349d4fff89adef9dd9d4abe20da8",
+    "transformer.h.0.moe.shared.w_down.weight": "9411f5838d0d526b6f3776d16021c8fadfe7f4080f0b217964d2e99517898428",
+    "transformer.h.0.moe.experts.0.w_gate.weight": "f127c96db274da653d36184d93e29403e2ce2bd5b8b22413e111e4939634a224",
+    "transformer.h.0.moe.experts.0.w_up.weight": "b73cebf1743af4030452781495c73750c2218df4493b1dc9a703ad352414066c",
+    "transformer.h.0.moe.experts.0.w_down.weight": "fa8cac761264e70a09aceefb21835262987f5c741b05b137d48708a47dd18f78",
+    "transformer.h.0.moe.experts.1.w_gate.weight": "d85560f025ed041ce3e3c4262f395606367b5d582f5fb4de536ff3919e68e9ae",
+    "transformer.h.0.moe.experts.1.w_up.weight": "dd6828c8b73e832b8632d83454b6f30378907ea5762365bb4f3a1a4d3654b15d",
+    "transformer.h.0.moe.experts.1.w_down.weight": "6d0218bc848e40f6249178def986c9e78ac9c3942fc40df2d6a8ed1612efa849",
+    "transformer.h.0.moe.experts.2.w_gate.weight": "d62eab8bc55866b2d3752e4a93b6f536bd8b3edd938d7b34285fddbe6c08f403",
+    "transformer.h.0.moe.experts.2.w_up.weight": "67aa5535a38b0628f952c2db92cc1d78b3f01e1d4a6376b7daae3d115fbd3d98",
+    "transformer.h.0.moe.experts.2.w_down.weight": "999b6efd3166116e061278fb4a7bedfdc6b2f02c0db342bfeb711381ae5859e0",
+    "transformer.h.0.moe.experts.3.w_gate.weight": "7a64f9cc73a2ca28efb817d01b289c95bff2a4306f08873a7ade2c12b86795ac",
+    "transformer.h.0.moe.experts.3.w_up.weight": "ce334dadbccd77298b0bda2599a875c46f24513a7da08db004e198e81f7bb703",
+    "transformer.h.0.moe.experts.3.w_down.weight": "375b538826d652f85dbb923eb11810f08aea71c231642df5d691956893abc211",
+    "transformer.h.1.ln_1.weight": "87d2d04e553663bc4572f3975b146cb922ee488ec56bcb2dc864b1266f1ba2c0",
+    "transformer.h.1.attn.c_attn.weight": "fd74154d388268c9aba7ea174b353a8fcbde2726c3654c886801443b051e76c0",
+    "transformer.h.1.attn.c_proj.weight": "4013e5a7500cf47683afc2b73ce20db1b02ba8ad111932b5a524b91f636e293c",
+    "transformer.h.1.ln_2.weight": "c2d4cc1781b726d3d3db31698cd9ad125e5d09c85db609bc9c341d3624621154",
+    "transformer.h.1.moe.router_norm.weight": "a20fc93e8751e88046fc450bac63c38b00599af9440f88fc200a839281abdfa1",
+    "transformer.h.1.moe.router.weight": "562a1204538435e29c7feaf7191456d9b9ca20db4e6866acf77371816427bcfb",
+    "transformer.h.1.moe.shared.w_gate.weight": "6c3823960184b783a23bc885ec23af1e2165983da21d12049844d83ce50b17c1",
+    "transformer.h.1.moe.shared.w_up.weight": "27120492d2a81263d53da02671992f3cdb5743b03c117c7fd0fd1f1a987757c3",
+    "transformer.h.1.moe.shared.w_down.weight": "a9c43bd6fe27fb837c810ce47fadae797c75f46e6ade93aeb68e207e16e5b226",
+    "transformer.h.1.moe.experts.0.w_gate.weight": "3424b044920f323fbafa2f8b6e334dd631c4fccf15aeee3f34a1ccfc8bf10423",
+    "transformer.h.1.moe.experts.0.w_up.weight": "0ab3001777031200947b44d311371bb803c8a51920eae387f657c8c4eb260105",
+    "transformer.h.1.moe.experts.0.w_down.weight": "772c062825b0d3e103632217a44c7a4c1d2a7915fc27f91b9dcd4c23c3433f46",
+    "transformer.h.1.moe.experts.1.w_gate.weight": "88deaaff9606e35a20ece7a2e8e77b0f663b13b34f83997f0caacce27cc97850",
+    "transformer.h.1.moe.experts.1.w_up.weight": "c8b150d82ad3cc36289d13a2c193a98d7fd2f119855f52164020efe8d7eb6cd3",
+    "transformer.h.1.moe.experts.1.w_down.weight": "eda3c04ae30b09d51d197d57d2e1e341a79be6e7e5303d988b8e71fc3e36004d",
+    "transformer.h.1.moe.experts.2.w_gate.weight": "8370314684e077b25342db603f52c95f1786c35199e1c5d3056d721b520eb016",
+    "transformer.h.1.moe.experts.2.w_up.weight": "fb99fd37995a5cd87f5b6b236936fb1e7163e66d97c68b346c321d286e68a0e3",
+    "transformer.h.1.moe.experts.2.w_down.weight": "352f0e4e8aed0a568b9fd5548aacd2cc570f640d8862232bc6704f2413bc393b",
+    "transformer.h.1.moe.experts.3.w_gate.weight": "cf2a71e27d2f9beb135429225e8275aeaa1258501d9757d45617d1ac04ddde5b",
+    "transformer.h.1.moe.experts.3.w_up.weight": "d5a830002abc974dd10c0f60c287c86f0805a2fe844b555b35d08baa2f1b69dd",
+    "transformer.h.1.moe.experts.3.w_down.weight": "4656b4b2e948e16f43a337e75efd57195964af29010d1d3fa7e5fc1af931d117",
+    "transformer.ln_f.weight": "52867fa2300eaa5cace220629272338fb2e56e553c1370a62749bc6b88f43eb5",
+    "lm_head.weight": "74fd63a0a2bae918b6df7bd7d4a488b6363f90c812d8a4fe10d891f6d356933e"
+   }
+  }
+ }
+}
