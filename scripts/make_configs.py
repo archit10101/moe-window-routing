@@ -71,6 +71,13 @@ def runs():
     table["m2d2-win1-s0"] = m2d2(win(1), 0, "LR_BASE")
     table["m2d2-win64-s0"] = m2d2(win(64), 0, "LR_WIN")
 
+    # uneven designs (docs/M2D2_UNEVEN_PROMPT.md part 5): 165M tokens on builds where one domain has 4x the
+    # training data; same recipe and LRs (chosen_lr_m2d2.py) as the even main runs
+    for prefix, base_config in (("m2d2h4", "config/pilot_m2d2_hist4x.py"), ("m2d2r4", "config/pilot_m2d2_rep4x.py")):
+        for s in range(4):
+            for arm, windows, lr in (("base", BASE, "LR_BASE"), ("win16", win(16), "LR_WIN")):
+                table[f"{prefix}-{arm}-s{s}"] = dict(m2d2(windows, s, lr, tokens=165 * M), base_config=base_config)
+
     # SlimPajama control at the same 120M budget, with the SlimPajama LR (5e-4, both arms)
     for s in range(3):
         for arm, windows in (("base", BASE), ("win16", win(16))):

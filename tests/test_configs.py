@@ -60,7 +60,7 @@ def test_generated_configs_are_current(tmp_path):
         (out / f"{name}.py").write_text(make_configs.render(name, spec))
         committed = open(os.path.join(REPO, "config", "runs", f"{name}.py")).read()
         assert committed == (out / f"{name}.py").read_text(), f"config/runs/{name}.py is stale"
-    assert set(make_configs.runs()) == set(EXPECTED) | set(FOLLOWUP) | set(M2D2) | set(SLIM120)
+    assert set(make_configs.runs()) == set(EXPECTED) | set(FOLLOWUP) | set(M2D2) | set(SLIM120) | set(UNEVEN)
 
 
 def test_new_configs(config_tree):
@@ -156,3 +156,36 @@ def test_m2d2_main_configs_stop_until_both_lrs_set(config_tree):
     committed = open(os.path.join(REPO, "config", "chosen_lr_m2d2.py")).read()
     assert "LR_BASE = None" in committed and "LR_WIN = None" in committed
     assert (config_tree / "config" / "chosen_lr.py").read_text() == "LR_BASE = 0.0011\nLR_WIN = 0.0022\n"
+
+
+# docs/M2D2_UNEVEN_PROMPT.md part 5: name -> (data folder, window_layers, seed, LR variable)
+UNEVEN_DATA = {"m2d2h4": "/home/architta/orcd/scratch/moe-pilot/data_m2d2w8_hist4x",
+               "m2d2r4": "/home/architta/orcd/scratch/moe-pilot/data_m2d2w8_rep4x"}
+UNEVEN = {f"{p}-{arm}-s{s}": (UNEVEN_DATA[p], w, s, lr)
+          for p in UNEVEN_DATA for s in range(4) for arm, w, lr in (("base", B, "LR_BASE"), ("win16", W16, "LR_WIN"))}
+
+
+def test_uneven_configs(config_tree):
+    assert len(UNEVEN) == 16
+    lr_file = config_tree / "config" / "chosen_lr_m2d2.py"
+    # refuse to run while either LR is None
+    for text in ("LR_BASE = None\nLR_WIN = None\n", "LR_BASE = None\nLR_WIN = 0.0003\n"):
+        lr_file.write_text(text)
+        for name in ("m2d2h4-base-s0", "m2d2r4-win16-s3"):
+            with pytest.raises(SystemExit, match="not both set"):
+                T.load_config([f"config/runs/{name}.py"])
+    lr_file.write_text("LR_BASE = 0.0007\nLR_WIN = 0.0003\n")
+    lrs = {"LR_BASE": 0.0007, "LR_WIN": 0.0003}
+    base = T.default_config()
+    even = T.load_config(["config/runs/m2d2-base-s0.py"])
+    for name, (data_dir, windows, seed, lr) in UNEVEN.items():
+        cfg = T.load_config([f"config/runs/{name}.py"])
+        want = dict(base, run_name=name, data_dir=data_dir, window_layers=windows, seed=seed, lr=lrs[lr],
+                    total_tokens=165 * M, eval_interval=100, eval_split="val")
+        diff = {k: (cfg[k], want[k]) for k in want if cfg[k] != want[k]}
+        assert not diff, f"{name}: {diff}"
+        # everything except the run identity, data folder and budget matches the even main runs
+        same = {k for k in cfg if k not in ("run_name", "data_dir", "total_tokens", "seed", "window_layers", "lr")}
+        assert {k: cfg[k] for k in same} == {k: even[k] for k in same}, name
+        _, steps, _ = T.derived(cfg)
+        assert steps == 2518
