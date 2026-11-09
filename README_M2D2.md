@@ -2,6 +2,8 @@
 
 This runbook replicates the per-token vs window-routing comparison on **M2D2-Wiki-8**: eight top-level Wikipedia categories from M2D2. The spec is `docs/M2D2_PROMPT.md`.
 
+> **Running everything at once?** The section [Uneven-domain designs: everything in one go](#uneven-domain-designs-everything-in-one-go) at the end submits the even design below *and* the two uneven designs (hist4x, rep4x) with one command, `scripts/slurm/submit_m2d2_all.sh`. Steps 1–3 here (pull, download, inspect) still apply. The manual steps 4–9 below remain valid for the even design alone, except that the locked test (step 9) now covers all three designs, so it needs the uneven runs to exist.
+
 - **Why this dataset:** every domain is Wikipedia, so any routing specialization has to come from topic, not from writing style.
 - **The comparison:** M2D2 against a SlimPajama control at the same 120M-token budget (`slim120-`), and against the original 500M SlimPajama pilot.
 - **Unchanged:** the existing SlimPajama runs, configs, `config/chosen_lr.py` and every script's default behavior.
@@ -189,7 +191,7 @@ cat $PROJECT/analysis/locked_test_log.txt
 python analysis/compare_datasets.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/compare_with_test --with_test
 ```
 
-The job evaluates m2d2-base-s0…s4 and m2d2-win16-s0…s4 on `test_<domain>.bin`, with the same evaluation code and offsets as the final eval. It writes `<run>/test_results.json` and appends to the log. A second attempt is refused. `--allow_reuse_of_locked_test` overrides that, but the reuse is logged and every summary is marked "TEST SET REUSED".
+The job evaluates all three designs in one invocation: m2d2-base/win16-s0…s4, m2d2h4-base/win16-s0…s3 and m2d2r4-base/win16-s0…s3. Each run reads `test_<domain>.bin` from its own build, after a SHA-256 check that those files are identical to `data_m2d2w8/`'s, with the same evaluation code and offsets as the final eval. It refuses if any of the 26 runs has no checkpoint. Summaries are per design. It writes `<run>/test_results.json` and appends to the log. A second attempt is refused. `--allow_reuse_of_locked_test` overrides that, but the reuse is logged and every summary is marked "TEST SET REUSED".
 
 ## 10. What each output means
 
@@ -218,3 +220,158 @@ The job evaluates m2d2-base-s0…s4 and m2d2-win16-s0…s4 on `test_<domain>.bin
 - **"LR_BASE / LR_WIN … are not both set":** the M2D2 LR check hasn't written `config/chosen_lr_m2d2.py` yet (step 5).
 - **`train.py` says eval_split 'test' is refused:** intended. Only `eval_locked_test.py` reads the test split.
 - **Plain `analyze.py` on `$PROJECT/runs` now lists m2d2/slim120 runs** in its per-run tables. That's its usual behavior; the pilot's verdict still uses only the unprefixed base/win16 runs. Use `--prefix` for the new groups.
+
+---
+
+## Uneven-domain designs: everything in one go
+
+The spec is `docs/M2D2_UNEVEN_PROMPT.md`.
+
+**Hypothesis:** topic-routed experts need a lot of data from their topic before they learn useful subject knowledge. At 15M tokens per domain they can't, so window routing loses. If one domain gets 4× the data (60M instead of 15M tokens), the window arm's penalty *on that domain* should shrink more than on the others.
+
+| Design | Data folder | Boosted domain | Runs | Budget |
+|---|---|---|---|---|
+| even | `data_m2d2w8/` | none (15M train tokens per domain) | m2d2-* (LR check, base/win16 s0–s4, win1, win64) | 120M tokens |
+| hist4x | `data_m2d2w8_hist4x/` | history | m2d2h4-base/win16-s0…s3 | 165M tokens (2,518 steps) |
+| rep4x | `data_m2d2w8_rep4x/` | philosophy (natural_sciences if philosophy runs out) | m2d2r4-base/win16-s0…s3 | 165M tokens |
+
+The uneven builds use exactly the even build's pipeline:
+
+- Every `test_*`, `val_*` and `calib_*` file is byte-identical to the even build's (checked in each build's `sanity.txt`, and again before the locked test).
+- Every non-boosted domain has the even build's training documents.
+- The boosted domain has the even build's documents followed by more, in the same order.
+
+The uneven runs use the LRs the even design's LR check picks (`config/chosen_lr_m2d2.py`).
+
+**The primary test** compares hist4x with rep4x. They have the same budget, schedule and LRs, and differ only in which domain was boosted.
+
+### U1. Pull on Engaging
+
+```bash
+cd $PROJECT/code
+module load miniforge && source "$(conda info --base)/etc/profile.d/conda.sh" && conda activate moe
+git stash && git pull && git stash pop
+ls config/runs | grep -cE "^m2d2[hr]4-"        # 16
+```
+
+If the archives aren't downloaded yet, do steps 2 (download) and 3 (inspect) above first. The builds use `--doc_mode title` by default, the blank / title / blank / body layout of M2D2's files. Check that inspect prints `RECOMMENDATION: --doc_mode title` and that the title-mode token lengths look like whole articles (p50 in the hundreds or more). If inspect recommends another mode, add `--doc_mode <mode>` to both commands below. All three builds always use the same mode.
+
+### U2. Dry run first
+
+```bash
+scripts/slurm/submit_m2d2_all.sh b200 --dry_run
+```
+
+Nothing is submitted, and the job IDs it prints (900, 901, …) are placeholders. Check that:
+
+- **The build lines are right.** A folder that already holds a build that passed its checks says "skipping". Otherwise there is one `build-m2d2-even`, `-hist4x` and `-rep4x` line each, ending in `build_m2d2.sbatch title …`.
+- **The uneven builds are configured correctly:**
+  - hist4x carries `--train_quota_override history=60000000`;
+  - rep4x carries `philosophy=60000000 --fallback_domain natural_sciences`;
+  - both carry `--reference_dir …/data_m2d2w8`;
+  - both have `--dependency=afterok:<even build>` when the even build is also being submitted.
+- **The rest is queued in the right order:**
+  - 6 `m2d2-lr-*` jobs (after the even build, if one is submitted);
+  - one `m2d2-after` CPU job with `--dependency=afterany:<the 6 LR jobs>` and arguments `b200 <hist4x build id or none> <rep4x build id or none>`;
+  - 6 `slim120-*` jobs.
+- **The planned main runs are right.** The final block, "the after job will then submit", lists 28 runs in the order m2d2 s0 (base, win1, win16), hist4x s0, rep4x s0, then the three designs' s1, s2 and s3 pairs, then m2d2 s4 and m2d2-win64-s0. Uneven runs show `--dependency=afterok:<their build>`; the time limits are 00:40:00 (even) and 00:50:00 (uneven).
+
+### U3. Submit everything
+
+```bash
+scripts/slurm/submit_m2d2_all.sh b200       # add --doc_mode <mode> if inspect recommended another mode
+```
+
+It prints every job ID and the dependency tree. What happens next:
+
+1. The builds run on `mit_normal`: 16 CPUs, 64 GB, up to 3 hours each.
+2. The LR runs follow the even build.
+3. The `m2d2-after` CPU job then:
+   - writes `config/chosen_lr_m2d2.py` and prints the chosen LRs (in `$PROJECT/runs/slurm/m2d2-after-<id>.out`);
+   - submits the 28 main runs.
+
+   An uneven design whose build failed has its runs skipped. The job then exits non-zero after submitting the rest. Fix the build, rerun `submit_m2d2_all.sh b200` (finished builds are skipped, and finished runs exit immediately), or submit the skipped runs by hand with `scripts/slurm/submit.sh <run> b200 00:50:00 <run>`.
+
+### U4. After the builds: check them
+
+```bash
+for v in "" _hist4x _rep4x; do
+  d=$PROJECT/data_m2d2w8$v; echo "== $d"
+  python -c "
+import json; m = json.load(open('$d/meta.json'))
+for k in ('doc_mode', 'variant', 'boosted_domain', 'requested_boosted_domain', 'fallback_used', 'train_quota_by_source', 'train_tokens_by_source'): print(k, m.get(k))"
+  grep -E "^(OK|FAILED|SKIPPED):" $d/sanity.txt
+done
+```
+
+What to look for:
+
+- **hist4x:** `boosted_domain` is `history`, `fallback_used` is false, and history has about 60M train tokens against about 15M for every other domain.
+- **rep4x:** `boosted_domain` is `philosophy` (or `natural_sciences` with `fallback_used` true; everything downstream reads this from `meta.json`).
+- **Uneven builds:** `sanity.txt` has both `OK: none of the …` and `OK: all test/val/calib files are byte-identical to the reference build …`.
+- **Everything:** `scripts/slurm/status.sh` lists all three builds as "checks passed".
+
+If a build failed, its dependent jobs sit in the queue with the reason `DependencyNeverSatisfied`. If the even build failed, that includes the LR runs and `m2d2-after`. Remove them with `scancel <ids>`, read `$PROJECT/runs/slurm/build-m2d2-*.out`, fix the cause, move the failed folder away, and rerun `submit_m2d2_all.sh b200`.
+
+### U5. Monitor, and an early read
+
+```bash
+scripts/slurm/status.sh
+# once s0 and s1 of every design have finished (it says PARTIAL until everything is done):
+python analysis/uneven.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/uneven_early
+head -20 $PROJECT/analysis/uneven_early/uneven_summary.md
+```
+
+### U6. When everything has finished
+
+```bash
+python analysis/analyze.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/m2d2 --prefix m2d2-
+python analysis/analyze.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/slim120 --prefix slim120-
+python analysis/compare_datasets.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/compare
+python analysis/uneven.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/uneven
+cat $PROJECT/analysis/uneven/uneven_summary.md
+```
+
+To analyze copies on the laptop, add `--data_root <folder holding the data_m2d2w8_* builds>` to `uneven.py`. It only needs their `meta.json`.
+
+### U7. Only then: the locked test, once, for all three designs
+
+```bash
+scripts/slurm/submit_locked_test.sh b200      # 26 runs; asks: the locked test is used once; continue? [y/N]
+# when the job is done:
+cat $PROJECT/analysis/m2d2_locked_test/summary.md
+python analysis/compare_datasets.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/compare_with_test --with_test
+python analysis/uneven.py --runs_dir $PROJECT/runs --out_dir $PROJECT/analysis/uneven_with_test --with_test
+```
+
+Before evaluating, the job checks that every run's `test_<domain>.bin` files are byte-identical to `data_m2d2w8/`'s, and refuses if any differs. It logs once, and refuses a second use unless you pass `--allow_reuse_of_locked_test`.
+
+### U8. What each verdict line in `uneven_summary.md` means
+
+Throughout, gap = win16 − base per domain, paired by seed, and **positive means the window arm is worse**. The hypothesis predicts *negative* values below.
+
+- **Primary (swap contrast):**
+  - **What it measures:** B = mean over seeds of (gap on history − gap on rep4x's boosted domain) in hist4x, minus the same in rep4x.
+  - **"supports the hypothesis"** (B < −2·SE): each of the two domains has a smaller penalty in the design where it got 4× the data. The budget, schedule and LRs are identical, so this is the cleanest test.
+  - **"contradicts it"** (B > +2·SE): the penalty is *larger* where the data was added.
+  - **"not distinguishable":** within ±2·SE. Read it next to the minimum detectable effect (2·SE) and B as a fraction of the even design's mean gap; together they say how big an effect this many seeds could have detected.
+- **Difference-in-differences vs even, per uneven design:**
+  - **What it measures:** the boosted domain's gap minus the mean of the other domains' gaps, uneven design minus even design, read with the same rule.
+  - **Caveat:** the budgets differ (165M vs 120M tokens). Subtracting the other domains removes shifts common to every domain, but not effects that scale with a domain's gap size.
+  - **Supporting numbers:** the ratio table (boosted vs non-boosted domains) and the **placebo rank**. A rank of 1 of 8 means the boosted domain's gap shrank the most of all domains.
+- **Crossover:**
+  - "yes: win16 beats the baseline on <domain>" means the boosted domain's gap is below 0 by more than 2·SE: with 4× data the window router actually wins there.
+  - "no: the baseline is still better" means the gap stays above 0 by more than 2·SE.
+  - Otherwise, no clear difference.
+- **Absolute losses:** how much each arm's loss on the boosted domain improved from even to uneven, and how much more win16 gained than the baseline.
+- **PARTIAL:** some configured runs haven't finished. The line gives the seed counts per design, and the numbers use the finished seeds only.
+
+**Other outputs:**
+
+- `uneven_per_domain.md`: every domain × design, with mean gap, seed spread and base/win16 losses.
+- `uneven_delta.png`: each domain's change in gap from even to each uneven design, with the boosted domain in red.
+- `uneven_swap.png`: per-seed swap contrasts.
+- `uneven_expert_usage.png`: source–expert mutual information and the effective number of experts per layer, base vs win16, per design.
+- `uneven_results.json`: every number.
+
+With `--with_test`, everything is repeated on the locked test split, including expert usage from the test-split routing counts.
