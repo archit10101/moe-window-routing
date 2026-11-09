@@ -1,0 +1,536 @@
+{
+ "line": {
+  "calib_culture.bin": "42e8a9456ad3b70525f4d307ec817f7368f0e86d725c487e9fdc7dbb435fe74e",
+  "calib_health.bin": "5d8344452033e38b9d73911725614f6d1cd6a90a53088709f68a891f52aa3cae",
+  "calib_history.bin": "68e00efb2e8d55e00574124faac7e366aca08b40be4bce002fa8fd1445589f77",
+  "calib_mathematics.bin": "40e06156fa5aff4cd93f343abd7cfebf739a78e51943af9329d738ae5ada8ea1",
+  "calib_natural_sciences.bin": "d48eee1e045d77f3714421ddf89c0b9144e06b27404cc33132b13cc70d40c519",
+  "calib_philosophy.bin": "a09f617f7fa7c213da9863e09aa0c60037f7900c1718993cbb1c6fe541960985",
+  "calib_society.bin": "40bfac2324e754b30ddbf830d29b5f55aa2d0756725542de1c850657d2408e23",
+  "calib_technology.bin": "b0dd1051a69fa4f3a6f4c3d21a0f831db7255351ab37262567461ca4e99a20e7",
+  "meta.json": {
+   "dataset": "m2d2-wiki-8",
+   "source_dataset": "machelreid/m2d2",
+   "dataset_revision": null,
+   "archives": [
+    "data/Culture_and_the_arts.tar.gz",
+    "data/Health_and_fitness.tar.gz",
+    "data/History_and_events.tar.gz",
+    "data/Mathematics_and_logic.tar.gz",
+    "data/Natural_and_physical_sciences.tar.gz",
+    "data/Philosophy_and_thinking.tar.gz",
+    "data/Society_and_social_sciences.tar.gz",
+    "data/Technology_and_applied_sciences.tar.gz"
+   ],
+   "domains": {
+    "culture": "Culture_and_the_arts",
+    "health": "Health_and_fitness",
+    "history": "History_and_events",
+    "mathematics": "Mathematics_and_logic",
+    "natural_sciences": "Natural_and_physical_sciences",
+    "philosophy": "Philosophy_and_thinking",
+    "society": "Society_and_social_sciences",
+    "technology": "Technology_and_applied_sciences"
+   },
+   "tokenizer": "bytes (test)",
+   "eot_token": 256,
+   "dtype": "uint16",
+   "doc_mode": "line",
+   "block_lines": 40,
+   "split_salt": "m2d2w8-v1:",
+   "train_shuffle_seed": 12345,
+   "quotas_per_domain": {
+    "test": 1500,
+    "val": 1500,
+    "calib": 1000,
+    "train": 4000
+   },
+   "doc_length_filter_tokens": [
+    64,
+    50000
+   ],
+   "train_tokens_total": 33208,
+   "train_tokens_by_source": {
+    "culture": 4129,
+    "health": 4283,
+    "history": 4011,
+    "mathematics": 4166,
+    "natural_sciences": 4116,
+    "philosophy": 4197,
+    "society": 4226,
+    "technology": 4080
+   },
+   "train_share_by_source": {
+    "culture": 0.1243,
+    "health": 0.129,
+    "history": 0.1208,
+    "mathematics": 0.1255,
+    "natural_sciences": 0.1239,
+    "philosophy": 0.1264,
+    "society": 0.1273,
+    "technology": 0.1229
+   },
+   "val_tokens_by_source": {
+    "culture": 1728,
+    "health": 1722,
+    "history": 1510,
+    "mathematics": 1593,
+    "natural_sciences": 1510,
+    "philosophy": 1554,
+    "society": 1625,
+    "technology": 1705
+   },
+   "calib_tokens_by_source": {
+    "culture": 1137,
+    "health": 1188,
+    "history": 1077,
+    "mathematics": 1104,
+    "natural_sciences": 1000,
+    "philosophy": 1153,
+    "society": 1115,
+    "technology": 1068
+   },
+   "test_tokens_by_source": {
+    "culture": 1697,
+    "health": 1663,
+    "history": 1762,
+    "mathematics": 1534,
+    "natural_sciences": 1608,
+    "philosophy": 1641,
+    "society": 1526,
+    "technology": 1582
+   },
+   "docs_by_split_and_source": {
+    "test": {
+     "culture": 7,
+     "health": 7,
+     "history": 8,
+     "mathematics": 7,
+     "natural_sciences": 6,
+     "philosophy": 7,
+     "society": 6,
+     "technology": 6
+    },
+    "val": {
+     "culture": 7,
+     "health": 8,
+     "history": 6,
+     "mathematics": 7,
+     "natural_sciences": 7,
+     "philosophy": 8,
+     "society": 9,
+     "technology": 8
+    },
+    "calib": {
+     "culture": 5,
+     "health": 5,
+     "history": 5,
+     "mathematics": 5,
+     "natural_sciences": 5,
+     "philosophy": 5,
+     "society": 5,
+     "technology": 5
+    },
+    "train": {
+     "culture": 17,
+     "health": 19,
+     "history": 18,
+     "mathematics": 18,
+     "natural_sciences": 17,
+     "philosophy": 18,
+     "society": 18,
+     "technology": 19
+    }
+   },
+   "dedup": {
+    "culture": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "health": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "history": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "mathematics": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "natural_sciences": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "philosophy": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "society": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "technology": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    }
+   },
+   "whitespace_only_duplicates_dropped": 0,
+   "cross_domain_duplicates_by_pair": {},
+   "skipped_by_length": {
+    "culture": {
+     "short": 0,
+     "long": 0
+    },
+    "health": {
+     "short": 0,
+     "long": 0
+    },
+    "history": {
+     "short": 0,
+     "long": 0
+    },
+    "mathematics": {
+     "short": 0,
+     "long": 0
+    },
+    "natural_sciences": {
+     "short": 0,
+     "long": 0
+    },
+    "philosophy": {
+     "short": 0,
+     "long": 0
+    },
+    "society": {
+     "short": 0,
+     "long": 0
+    },
+    "technology": {
+     "short": 0,
+     "long": 0
+    }
+   },
+   "sampling_note": "train.py samples random 1,024-token windows with replacement. A budget of ~120M tokens over ~120M training tokens covers about 63% of positions at least once (1 - e^-1), and ~26% two or more times; both M2D2 arms share this regime. For comparison, the SlimPajama pilot covered ~57% (500M over 600M), and the slim120 control covers ~18% (120M over 600M) with almost no repeats."
+  },
+  "sanity.txt": "4e60868da703230ce380ecd1417859ddcab368f19c2af4db20ff3cfcd1fdfe8a",
+  "splits_manifest.jsonl": "089c613de3c369a34c949c19e06f8a702829bd9ce8473b68fd795fbd063cc31c",
+  "test_culture.bin": "a5f026466781d0945b1439fc5db36b75d475bf7c3e7b7c4a23c3dbaa49bfb196",
+  "test_health.bin": "1e6183e13c4a2c1e97ec6915e5f10f384b2199630d790c77a8d1c32060df21aa",
+  "test_history.bin": "3dd479fe36c7e9f20ea92cc16805f0230cc2cc4993bae0c2139db9228232f3e3",
+  "test_mathematics.bin": "6c93bf8dd9d68c60027f7574b7f43bd3ceb61da94787cdfaabbdea6c2eacc577",
+  "test_natural_sciences.bin": "9bc0d84091ec8bd360fb761186d7b2656e043d7fa99003d74afec70510d3b3c1",
+  "test_philosophy.bin": "650a5acc2e49d0d19e731d19aaf34b026395e5f60d998ee5f94fad2581e376d9",
+  "test_society.bin": "860ec4b0bb0236cebf4dc03100f1b32302fa3dba0e849cd5ddec18e98e677609",
+  "test_technology.bin": "2c759ed90f8e17b4af407ea652ac9a9d5f8e887e89bf3f873447eef14edbb9f0",
+  "train.bin": "e1b7dd255149cb28c5ddb224b8e2321f42ed7ba358cec190695bba7ffbd33ed1",
+  "val_culture.bin": "8e60f336f61bd05cd65b6327ae95334dc35fa669cb9b215d98f6135047df4a7b",
+  "val_health.bin": "097dcb19183fe69f92a88d20e9867eb932169fada3a56fe85ff911f0575d9018",
+  "val_history.bin": "fa2076f307ad0b4892b502d71cf5fa0354c4c58970ac967d247222ec885ed158",
+  "val_mathematics.bin": "29df92cee4f1a51d7ed60e4c7d8403ea81542989bcc86a8d68af46ebca524424",
+  "val_natural_sciences.bin": "bd9e21b37da2a64e86dfa2e1e1419185ee3caa19191dfe4cd9cc31cd35eb3997",
+  "val_philosophy.bin": "ece579a82b10ad09898fcd215f5e4237c9003e84fae297888c376ccbaa9e2943",
+  "val_society.bin": "30942709832406a02239bacafe32e42417d9af6910e20e0f4916c4a4bcd7e79a",
+  "val_technology.bin": "53ab655b8b11a75e41828a9adf2c744923f7271e7aadbf64bc2677ed507c7272"
+ },
+ "blank": {
+  "calib_culture.bin": "42e8a9456ad3b70525f4d307ec817f7368f0e86d725c487e9fdc7dbb435fe74e",
+  "calib_health.bin": "5d8344452033e38b9d73911725614f6d1cd6a90a53088709f68a891f52aa3cae",
+  "calib_history.bin": "68e00efb2e8d55e00574124faac7e366aca08b40be4bce002fa8fd1445589f77",
+  "calib_mathematics.bin": "40e06156fa5aff4cd93f343abd7cfebf739a78e51943af9329d738ae5ada8ea1",
+  "calib_natural_sciences.bin": "d48eee1e045d77f3714421ddf89c0b9144e06b27404cc33132b13cc70d40c519",
+  "calib_philosophy.bin": "a09f617f7fa7c213da9863e09aa0c60037f7900c1718993cbb1c6fe541960985",
+  "calib_society.bin": "40bfac2324e754b30ddbf830d29b5f55aa2d0756725542de1c850657d2408e23",
+  "calib_technology.bin": "b0dd1051a69fa4f3a6f4c3d21a0f831db7255351ab37262567461ca4e99a20e7",
+  "meta.json": {
+   "dataset": "m2d2-wiki-8",
+   "source_dataset": "machelreid/m2d2",
+   "dataset_revision": null,
+   "archives": [
+    "data/Culture_and_the_arts.tar.gz",
+    "data/Health_and_fitness.tar.gz",
+    "data/History_and_events.tar.gz",
+    "data/Mathematics_and_logic.tar.gz",
+    "data/Natural_and_physical_sciences.tar.gz",
+    "data/Philosophy_and_thinking.tar.gz",
+    "data/Society_and_social_sciences.tar.gz",
+    "data/Technology_and_applied_sciences.tar.gz"
+   ],
+   "domains": {
+    "culture": "Culture_and_the_arts",
+    "health": "Health_and_fitness",
+    "history": "History_and_events",
+    "mathematics": "Mathematics_and_logic",
+    "natural_sciences": "Natural_and_physical_sciences",
+    "philosophy": "Philosophy_and_thinking",
+    "society": "Society_and_social_sciences",
+    "technology": "Technology_and_applied_sciences"
+   },
+   "tokenizer": "bytes (test)",
+   "eot_token": 256,
+   "dtype": "uint16",
+   "doc_mode": "blank",
+   "block_lines": 40,
+   "split_salt": "m2d2w8-v1:",
+   "train_shuffle_seed": 12345,
+   "quotas_per_domain": {
+    "test": 1500,
+    "val": 1500,
+    "calib": 1000,
+    "train": 4000
+   },
+   "doc_length_filter_tokens": [
+    64,
+    50000
+   ],
+   "train_tokens_total": 33208,
+   "train_tokens_by_source": {
+    "culture": 4129,
+    "health": 4283,
+    "history": 4011,
+    "mathematics": 4166,
+    "natural_sciences": 4116,
+    "philosophy": 4197,
+    "society": 4226,
+    "technology": 4080
+   },
+   "train_share_by_source": {
+    "culture": 0.1243,
+    "health": 0.129,
+    "history": 0.1208,
+    "mathematics": 0.1255,
+    "natural_sciences": 0.1239,
+    "philosophy": 0.1264,
+    "society": 0.1273,
+    "technology": 0.1229
+   },
+   "val_tokens_by_source": {
+    "culture": 1728,
+    "health": 1722,
+    "history": 1510,
+    "mathematics": 1593,
+    "natural_sciences": 1510,
+    "philosophy": 1554,
+    "society": 1625,
+    "technology": 1705
+   },
+   "calib_tokens_by_source": {
+    "culture": 1137,
+    "health": 1188,
+    "history": 1077,
+    "mathematics": 1104,
+    "natural_sciences": 1000,
+    "philosophy": 1153,
+    "society": 1115,
+    "technology": 1068
+   },
+   "test_tokens_by_source": {
+    "culture": 1697,
+    "health": 1663,
+    "history": 1762,
+    "mathematics": 1534,
+    "natural_sciences": 1608,
+    "philosophy": 1641,
+    "society": 1526,
+    "technology": 1582
+   },
+   "docs_by_split_and_source": {
+    "test": {
+     "culture": 7,
+     "health": 7,
+     "history": 8,
+     "mathematics": 7,
+     "natural_sciences": 6,
+     "philosophy": 7,
+     "society": 6,
+     "technology": 6
+    },
+    "val": {
+     "culture": 7,
+     "health": 8,
+     "history": 6,
+     "mathematics": 7,
+     "natural_sciences": 7,
+     "philosophy": 8,
+     "society": 9,
+     "technology": 8
+    },
+    "calib": {
+     "culture": 5,
+     "health": 5,
+     "history": 5,
+     "mathematics": 5,
+     "natural_sciences": 5,
+     "philosophy": 5,
+     "society": 5,
+     "technology": 5
+    },
+    "train": {
+     "culture": 17,
+     "health": 19,
+     "history": 18,
+     "mathematics": 18,
+     "natural_sciences": 17,
+     "philosophy": 18,
+     "society": 18,
+     "technology": 19
+    }
+   },
+   "dedup": {
+    "culture": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "health": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "history": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "mathematics": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "natural_sciences": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "philosophy": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "society": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    },
+    "technology": {
+     "documents": 80,
+     "unique": 80,
+     "exact_duplicates_dropped": 0,
+     "whitespace_only_duplicates_dropped": 0,
+     "cross_domain_dropped": 0,
+     "kept": 80
+    }
+   },
+   "whitespace_only_duplicates_dropped": 0,
+   "cross_domain_duplicates_by_pair": {},
+   "skipped_by_length": {
+    "culture": {
+     "short": 0,
+     "long": 0
+    },
+    "health": {
+     "short": 0,
+     "long": 0
+    },
+    "history": {
+     "short": 0,
+     "long": 0
+    },
+    "mathematics": {
+     "short": 0,
+     "long": 0
+    },
+    "natural_sciences": {
+     "short": 0,
+     "long": 0
+    },
+    "philosophy": {
+     "short": 0,
+     "long": 0
+    },
+    "society": {
+     "short": 0,
+     "long": 0
+    },
+    "technology": {
+     "short": 0,
+     "long": 0
+    }
+   },
+   "sampling_note": "train.py samples random 1,024-token windows with replacement. A budget of ~120M tokens over ~120M training tokens covers about 63% of positions at least once (1 - e^-1), and ~26% two or more times; both M2D2 arms share this regime. For comparison, the SlimPajama pilot covered ~57% (500M over 600M), and the slim120 control covers ~18% (120M over 600M) with almost no repeats."
+  },
+  "sanity.txt": "4e60868da703230ce380ecd1417859ddcab368f19c2af4db20ff3cfcd1fdfe8a",
+  "splits_manifest.jsonl": "089c613de3c369a34c949c19e06f8a702829bd9ce8473b68fd795fbd063cc31c",
+  "test_culture.bin": "a5f026466781d0945b1439fc5db36b75d475bf7c3e7b7c4a23c3dbaa49bfb196",
+  "test_health.bin": "1e6183e13c4a2c1e97ec6915e5f10f384b2199630d790c77a8d1c32060df21aa",
+  "test_history.bin": "3dd479fe36c7e9f20ea92cc16805f0230cc2cc4993bae0c2139db9228232f3e3",
+  "test_mathematics.bin": "6c93bf8dd9d68c60027f7574b7f43bd3ceb61da94787cdfaabbdea6c2eacc577",
+  "test_natural_sciences.bin": "9bc0d84091ec8bd360fb761186d7b2656e043d7fa99003d74afec70510d3b3c1",
+  "test_philosophy.bin": "650a5acc2e49d0d19e731d19aaf34b026395e5f60d998ee5f94fad2581e376d9",
+  "test_society.bin": "860ec4b0bb0236cebf4dc03100f1b32302fa3dba0e849cd5ddec18e98e677609",
+  "test_technology.bin": "2c759ed90f8e17b4af407ea652ac9a9d5f8e887e89bf3f873447eef14edbb9f0",
+  "train.bin": "e1b7dd255149cb28c5ddb224b8e2321f42ed7ba358cec190695bba7ffbd33ed1",
+  "val_culture.bin": "8e60f336f61bd05cd65b6327ae95334dc35fa669cb9b215d98f6135047df4a7b",
+  "val_health.bin": "097dcb19183fe69f92a88d20e9867eb932169fada3a56fe85ff911f0575d9018",
+  "val_history.bin": "fa2076f307ad0b4892b502d71cf5fa0354c4c58970ac967d247222ec885ed158",
+  "val_mathematics.bin": "29df92cee4f1a51d7ed60e4c7d8403ea81542989bcc86a8d68af46ebca524424",
+  "val_natural_sciences.bin": "bd9e21b37da2a64e86dfa2e1e1419185ee3caa19191dfe4cd9cc31cd35eb3997",
+  "val_philosophy.bin": "ece579a82b10ad09898fcd215f5e4237c9003e84fae297888c376ccbaa9e2943",
+  "val_society.bin": "30942709832406a02239bacafe32e42417d9af6910e20e0f4916c4a4bcd7e79a",
+  "val_technology.bin": "53ab655b8b11a75e41828a9adf2c744923f7271e7aadbf64bc2677ed507c7272"
+ }
+}
