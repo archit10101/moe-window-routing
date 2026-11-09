@@ -50,7 +50,7 @@ DEFAULT_QUOTAS = {"test": 1_500_000, "val": 1_500_000, "calib": 1_000_000, "trai
 MIN_TOKENS, MAX_TOKENS = 64, 50_000  # including the end-of-text token
 SPLIT_SALT = "m2d2w8-v1:"
 TRAIN_SHUFFLE_SEED = 12345
-DOC_MODES = ("line", "blank", "heading", "block")
+DOC_MODES = ("line", "blank", "heading", "block", "title")
 TOKENIZE_CHUNK = 256
 SAMPLING_NOTE = ("train.py samples random 1,024-token windows with replacement. A budget of ~120M tokens over "
                  "~120M training tokens covers about 63% of positions at least once (1 - e^-1), and ~26% two or "
@@ -60,6 +60,14 @@ SAMPLING_NOTE = ("train.py samples random 1,024-token windows with replacement. 
 
 class BuildError(RuntimeError):
     pass
+
+
+class RunOutError(BuildError):
+    """A domain ran out of documents before filling a split."""
+
+    def __init__(self, message, domain, split, supplied):
+        super().__init__(message)
+        self.domain, self.split, self.supplied = domain, split, supplied
 
 
 def log(msg):
@@ -88,9 +96,15 @@ def documents_from_lines(lines, mode, block_lines=40):
     blank:   documents are separated by empty lines
     heading: a document starts at every top-level heading line ("= Title =")
     block:   consecutive groups of block_lines lines (article boundaries not guaranteed)
+    title:   M2D2's layout (blank line, title line, blank line, body lines): a document starts at a
+             non-blank line with a blank line (or the start of the file) before it and a blank line
+             after it, and runs until the next such line
     """
     if mode not in DOC_MODES:
         raise ValueError(f"unknown doc_mode {mode!r}")
+    if mode == "title":
+        yield from _title_documents(lines)
+        return
     buf = []
 
     def flush():
@@ -124,6 +138,28 @@ def documents_from_lines(lines, mode, block_lines=40):
         text = flush()
         if text:
             yield text
+
+
+def _title_documents(lines):
+    """title mode, streaming with one line of lookahead (see documents_from_lines)."""
+    buf, prev_blank, cur = [], True, None  # the start of the file counts as a blank line
+
+    for raw in lines:
+        nxt = raw.strip()
+        if cur is not None:
+            if cur and prev_blank and not nxt and any(buf):  # cur is a title: the previous document ends
+                text = "\n".join(buf).strip()
+                buf = []
+                if text:
+                    yield text
+            buf.append(cur)
+            prev_blank = not cur
+        cur = nxt
+    if cur is not None:
+        buf.append(cur)
+    text = "\n".join(buf).strip()
+    if text:
+        yield text
 
 
 def iter_config_documents(raw_dir, config, mode, block_lines):
@@ -196,10 +232,18 @@ def download(raw_dir):
 
 def file_stats(path):
     lengths, empty, top, anyh, short_long, total = [], 0, 0, 0, 0, 0
+    isolated, isolated_short = 0, 0  # non-blank lines with blank lines (or the file start) on both sides
+    last, before_last_blank = None, True
     prev = None
     with open(path, encoding="utf-8", errors="replace") as f:
         for raw in f:
             line = raw.strip()
+            if last is not None:
+                if last and before_last_blank and not line:
+                    isolated += 1
+                    isolated_short += len(last) < 100
+                before_last_blank = not last
+            last = line
             total += 1
             if not line:
                 empty += 1
@@ -216,6 +260,7 @@ def file_stats(path):
     nonempty = max(1, total - empty)
     return dict(lines=total, empty_frac=empty / max(1, total), top_heading_frac=top / nonempty,
                 any_heading_frac=anyh / nonempty, short_then_long_frac=short_long / nonempty,
+                isolated_frac=isolated / nonempty, isolated_short_frac=isolated_short / nonempty,
                 pct=dict(zip((5, 50, 95, 99), np.percentile(lengths, [5, 50, 95, 99]).tolist())))
 
 
@@ -223,6 +268,9 @@ def recommend(stats):
     """doc_mode recommendation from the pooled statistics of one config, with the reason."""
     if stats["top_heading_frac"] >= 0.001:
         return "heading", f"{stats['top_heading_frac']:.2%} of lines are top-level '= Title =' headings"
+    if stats.get("isolated_short_frac", 0) >= 0.01 and stats["empty_frac"] >= 0.02:
+        return "title", (f"{stats['isolated_short_frac']:.1%} of lines are short lines between blank lines "
+                         "(blank / title / blank / body layout); check the title-mode document lengths above")
     if stats["empty_frac"] >= 0.02:
         return "blank", f"{stats['empty_frac']:.1%} of lines are empty (separators)"
     if stats["pct"][50] >= 500 and stats["any_heading_frac"] < 0.005 and stats["short_then_long_frac"] < 0.01:
@@ -236,7 +284,8 @@ def pooled(stats_list):
     lines = sum(s["lines"] for s in stats_list)
     w = [s["lines"] / max(1, lines) for s in stats_list]
     out = dict(lines=lines, pct={p: sum(wi * s["pct"][p] for wi, s in zip(w, stats_list)) for p in (5, 50, 95, 99)})
-    for k in ("empty_frac", "top_heading_frac", "any_heading_frac", "short_then_long_frac"):
+    for k in ("empty_frac", "top_heading_frac", "any_heading_frac", "short_then_long_frac", "isolated_frac",
+              "isolated_short_frac"):
         out[k] = sum(wi * s[k] for wi, s in zip(w, stats_list))
     return out
 
@@ -260,7 +309,13 @@ def inspect(raw_dir, overlap_mode=None, block_lines=40):
             p = s["pct"]
             print(f"  {name:<10} lines {s['lines']:>10,} | length p5/p50/p95/p99 {p[5]:.0f}/{p[50]:.0f}/{p[95]:.0f}/"
                   f"{p[99]:.0f} chars | empty {s['empty_frac']:.2%} | headings: top-level {s['top_heading_frac']:.2%}, "
-                  f"any {s['any_heading_frac']:.2%}, short-then-long {s['short_then_long_frac']:.2%}")
+                  f"any {s['any_heading_frac']:.2%}, short-then-long {s['short_then_long_frac']:.2%} | "
+                  f"isolated (title-like) {s['isolated_frac']:.2%}, short isolated {s['isolated_short_frac']:.2%}")
+        tlen = [len(t) / 4 for t in iter_config_documents(raw_dir, config, "title", block_lines)]
+        if tlen:
+            p = np.percentile(tlen, [5, 50, 95])
+            print(f"  title mode: {len(tlen):,} documents; estimated tokens (chars / 4) p5/p50/p95 "
+                  f"{p[0]:.0f}/{p[1]:.0f}/{p[2]:.0f}")
         print("  first 8 lines of train.txt:")
         with open(os.path.join(raw_dir, config, "train.txt"), encoding="utf-8", errors="replace") as f:
             for i, line in zip(range(8), f):
@@ -356,16 +411,54 @@ def fill_domain(domain, texts, enc, quotas, threads):
                 si += 1
                 if si == len(SPLITS):
                     return assigned, totals, skipped
-    raise BuildError(f"domain {domain} ran out of documents while filling the {SPLITS[si]} split: "
-                     f"{totals[SPLITS[si]]:,} of {quotas[SPLITS[si]]:,} tokens "
-                     f"(totals so far {totals}, {len(order):,} documents after dedup)")
+    raise RunOutError(f"domain {domain} ran out of documents while filling the {SPLITS[si]} split: "
+                      f"{totals[SPLITS[si]]:,} of {quotas[SPLITS[si]]:,} tokens "
+                      f"(totals so far {totals}, {len(order):,} documents after dedup)",
+                      domain, SPLITS[si], totals[SPLITS[si]])
 
 
-def build(raw_dir, out_dir, doc_mode, block_lines=40, threads=1, quotas=None, enc=None, overwrite=False):
-    """Build M2D2-Wiki-8 into out_dir and return meta. enc defaults to tiktoken's GPT-2 encoding."""
+def resolve_boost(raw_dir, doc_mode, block_lines, keep, enc, quotas, threads, override, fallback):
+    """The domain that gets the train-quota override, and its fill (reused by the main pass).
+
+    Tries the requested domain first; if it runs out of documents before its train quota, the
+    override moves to the fallback domain (whose fill then happens in the main pass)."""
+    requested, tokens = override
+    texts = collect_texts(raw_dir, DOMAINS[requested], doc_mode, block_lines, keep[requested])
+    try:
+        return requested, False, fill_domain(requested, texts, enc, {**quotas, "train": tokens}, threads)
+    except RunOutError as e:
+        if e.split != "train":
+            raise
+        if fallback is None:
+            raise RunOutError(f"{e} [train quota override {requested}={tokens:,}: {requested} can supply only "
+                              f"{e.supplied:,} train tokens; no --fallback_domain given]",
+                              e.domain, e.split, e.supplied) from None
+        log(f"NOTICE: {requested} can supply only {e.supplied:,} of {tokens:,} train tokens; "
+            f"applying the override to the fallback domain {fallback} instead")
+        return fallback, True, None
+
+
+def build(raw_dir, out_dir, doc_mode, block_lines=40, threads=1, quotas=None, enc=None, overwrite=False,
+          train_quota_override=None, fallback_domain=None, variant=None, reference_dir=None):
+    """Build M2D2-Wiki-8 into out_dir and return meta. enc defaults to tiktoken's GPT-2 encoding.
+
+    Uneven designs (docs/M2D2_UNEVEN_PROMPT.md): train_quota_override=(domain, tokens) replaces one
+    domain's train quota; fallback_domain takes the override if that domain runs out. Everything else
+    (pooling, dedup, filters, order, fill order, other domains' quotas) is the even design's, so every
+    test/val/calib file and every other domain's train documents are identical to the even build's.
+    reference_dir: an even build to compare the eval files against (a check line in sanity.txt).
+    """
     if doc_mode not in DOC_MODES:
         raise BuildError(f"unknown doc_mode {doc_mode!r}")
     quotas = {**DEFAULT_QUOTAS, **(quotas or {})}
+    if train_quota_override is not None:
+        for d in (train_quota_override[0], fallback_domain):
+            if d is not None and d not in DOMAINS:
+                raise BuildError(f"unknown domain {d!r} (domains: {', '.join(sorted(DOMAINS))})")
+        if fallback_domain == train_quota_override[0]:
+            raise BuildError("--fallback_domain must differ from the override domain")
+    elif fallback_domain is not None:
+        raise BuildError("--fallback_domain needs --train_quota_override")
     if enc is None:
         import tiktoken
         enc = tiktoken.get_encoding("gpt2")
@@ -403,12 +496,25 @@ def build(raw_dir, out_dir, doc_mode, block_lines=40, threads=1, quotas=None, en
         dedup[domain]["cross_domain_dropped"] = before - len(keep[domain])
         dedup[domain]["kept"] = len(keep[domain])
 
+    # uneven designs: settle which domain is boosted before writing anything
+    domain_quotas = {d: quotas for d in DOMAINS}
+    boosted, fallback_used, cached = None, False, {}
+    if train_quota_override is not None:
+        boosted, fallback_used, fill = resolve_boost(raw_dir, doc_mode, block_lines, keep, enc, quotas, threads,
+                                                     train_quota_override, fallback_domain)
+        domain_quotas[boosted] = {**quotas, "train": train_quota_override[1]}
+        if fill is not None:
+            cached[boosted] = fill
+
     # pass 2: order by content and fill the splits
     per_domain, train_docs, manifest = {}, [], []
     for domain, config in sorted(DOMAINS.items()):
-        texts = collect_texts(raw_dir, config, doc_mode, block_lines, keep[domain])
-        assigned, totals, skipped = fill_domain(domain, texts, enc, quotas, threads)
-        del texts
+        if domain in cached:
+            assigned, totals, skipped = cached.pop(domain)
+        else:
+            texts = collect_texts(raw_dir, config, doc_mode, block_lines, keep[domain])
+            assigned, totals, skipped = fill_domain(domain, texts, enc, domain_quotas[domain], threads)
+            del texts
         per_domain[domain] = dict(totals=totals, docs={s: len(assigned[s]) for s in SPLITS}, skipped=skipped)
         for split in SPLITS:
             for hx, arr in assigned[split]:
@@ -460,16 +566,51 @@ def build(raw_dir, out_dir, doc_mode, block_lines=40, threads=1, quotas=None, en
         "cross_domain_duplicates_by_pair": dict(sorted(pairs.items())),
         "skipped_by_length": {d: per_domain[d]["skipped"] for d in sorted(per_domain)},
         "sampling_note": SAMPLING_NOTE,
-        "created": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+    eval_hashes = eval_file_hashes(out_dir, sorted(per_domain))
+    if variant is not None:
+        meta["variant"] = variant
+    if train_quota_override is not None:
+        meta.update({
+            "boosted_domain": boosted,
+            "requested_boosted_domain": train_quota_override[0],
+            "fallback_used": fallback_used,
+            "train_quota_by_source": {d: domain_quotas[d]["train"] for d in sorted(per_domain)},
+            "eval_files_sha256": eval_hashes,
+        })
+    meta["created"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    extra = [] if reference_dir is None else [reference_check(eval_hashes, reference_dir)]
     with open(os.path.join(out_dir, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
-    write_sanity(out_dir, manifest, per_domain, enc)
+    write_sanity(out_dir, manifest, per_domain, enc, extra)
+    if extra and extra[0].startswith("FAILED"):
+        raise BuildError(extra[0])
     log(f"done: {train_total:,} training tokens in {out_dir}")
     return meta
 
 
-def write_sanity(out_dir, manifest, per_domain, enc):
+def eval_file_hashes(out_dir, domains):
+    """SHA-256 of every test / val / calib file of a build."""
+    return {f"{s}_{d}.bin": hashlib.sha256(open(os.path.join(out_dir, f"{s}_{d}.bin"), "rb").read()).hexdigest()
+            for s in ("test", "val", "calib") for d in domains}
+
+
+REFERENCE_OK = "OK: all test/val/calib files are byte-identical to the reference build"
+
+
+def reference_check(eval_hashes, reference_dir):
+    """The sanity.txt line comparing this build's eval files with a reference (even) build."""
+    if not os.path.exists(os.path.join(reference_dir, "meta.json")):
+        return f"SKIPPED: no reference build at {reference_dir} (eval-file hash check not done)"
+    ref = {name: (hashlib.sha256(open(os.path.join(reference_dir, name), "rb").read()).hexdigest()
+                  if os.path.exists(os.path.join(reference_dir, name)) else None) for name in eval_hashes}
+    differ = sorted(n for n in eval_hashes if ref[n] != eval_hashes[n])
+    if differ:
+        return f"FAILED: eval files differ from the reference build {reference_dir}: {', '.join(differ)}"
+    return f"{REFERENCE_OK} {reference_dir} ({len(eval_hashes)} files)"
+
+
+def write_sanity(out_dir, manifest, per_domain, enc, extra_lines=()):
     lines = []
     rng = np.random.default_rng(0)
     names = ["train"] + [f"{s}_{d}" for s in ("test", "val", "calib") for d in sorted(per_domain)]
@@ -492,6 +633,8 @@ def write_sanity(out_dir, manifest, per_domain, enc):
     lines.append(f"{'domain':<18}" + "".join(f"{s:>14}" for s in SPLITS))
     for d in sorted(per_domain):
         lines.append(f"{d:<18}" + "".join(f"{per_domain[d]['totals'][s]:>14,}" for s in SPLITS))
+    if extra_lines:
+        lines += [""] + list(extra_lines)
     with open(os.path.join(out_dir, "sanity.txt"), "w") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -521,6 +664,11 @@ def main():
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--quotas", help="override per-domain token quotas, e.g. test=1000,train=5000 (testing only)")
     ap.add_argument("--overwrite", action="store_true", help="replace an existing build in --out_dir")
+    ap.add_argument("--train_quota_override", metavar="DOMAIN=TOKENS",
+                    help="uneven design: replace one domain's train quota, e.g. history=60000000")
+    ap.add_argument("--fallback_domain", help="takes the override if the override domain runs out of documents")
+    ap.add_argument("--variant", help="name recorded in meta.json, e.g. hist4x or rep4x")
+    ap.add_argument("--reference_dir", help="an even build whose test/val/calib files must match (sanity check)")
     args = ap.parse_args()
     try:
         if args.download:
@@ -530,8 +678,15 @@ def main():
         else:
             if not args.out_dir or not args.doc_mode:
                 ap.error("--build needs --out_dir and --doc_mode")
+            override = None
+            if args.train_quota_override:
+                domain, _, tokens = args.train_quota_override.partition("=")
+                if not tokens.isdigit():
+                    ap.error("--train_quota_override expects DOMAIN=TOKENS, e.g. history=60000000")
+                override = (domain, int(tokens))
             build(args.raw_dir, args.out_dir, args.doc_mode, args.block_lines, args.threads,
-                  parse_quotas(args.quotas), overwrite=args.overwrite)
+                  parse_quotas(args.quotas), overwrite=args.overwrite, train_quota_override=override,
+                  fallback_domain=args.fallback_domain, variant=args.variant, reference_dir=args.reference_dir)
     except BuildError as e:
         sys.exit(f"prepare.py: {e}")
 

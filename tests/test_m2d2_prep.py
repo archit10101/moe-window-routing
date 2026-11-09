@@ -301,6 +301,6 @@ def test_build_sbatch_syntax():
     path = os.path.join(REPO, "data", "m2d2", "build_m2d2.sbatch")
     text = open(path).read()
     assert text.startswith("#!/bin/bash") and "set -uo pipefail" in text
-    for opt in ("#SBATCH -p mit_normal", "#SBATCH -c 16", "#SBATCH --mem=64G", "#SBATCH -t 02:00:00"):
+    for opt in ("#SBATCH -p mit_normal", "#SBATCH -c 16", "#SBATCH --mem=64G", "#SBATCH -t 03:00:00"):
         assert opt in text
     assert subprocess.run(["bash", "-n", path], capture_output=True).returncode == 0
