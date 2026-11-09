@@ -1,0 +1,43 @@
+{
+ "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+ "matplotlib": "3.11.2",
+ "main": {
+  "returncode": 0,
+  "stdout": "# MoE window-routing pilot: summary\n\n**Verdict: NEGATIVE**\n\nDecision rule (PROMPT.md part 8): s = sqrt((var(B) + var(W)) / 2) with ddof = 1; gap = mean(B) - mean(W) (positive = window arm better). Sanity: |win1-s0 - mean(B)| <= 2s. PROMISING: gap > 2s and win64-s0 <= mean(B) + 2s. NEGATIVE: gap < -2s. Otherwise INCONCLUSIVE.\n\n| quantity | value |\n|---|---|\n| mean(B) | 3.61000 |\n| mean(W) | 3.65000 |\n| gap = mean(B) - mean(W) | -0.04000 |\n| s | 0.01000 |\n| 2s | 0.02000 |\n| win1-s0 - mean(B) | -0.00500 (sanity ok) |\n| win64-s0 - mean(B) | +0.06000 |\n\n## Direct sanity comparison: win1-s0 vs base-s0\n\nBoth use seed 0 and LR_BASE, and n=1 routing equals per-token routing, so they should agree up to floating-point rounding. Reported alongside the decision rule above; it does not change the verdict.\n\n| quantity | value |\n|---|---|\n| win1-s0 - base-s0 (final val_overall) | +0.00500 |\n| max abs(win1-s0 - base-s0) over the eval curve (3 points) | 0.00500 |\n| final CE difference, book | +0.00000 |\n| final CE difference, c4 | +0.00000 |\n| final CE difference, github | +0.00000 |\n| for scale: 2s | 0.02000 |\n\n## Final val_overall per run\n\n| run | final val_overall | tokens |\n|---|---|---|\n| base-s0 | 3.60000 | 327,680 |\n| base-s1 | 3.62000 | 327,680 |\n| base-s2 | 3.61000 | 327,680 |\n| win1-s0 | 3.60500 | 327,680 |\n| win16-s0 | 3.66000 | 327,680 |\n| win16-s1 | 3.64000 | 327,680 |\n| win16-s2 | 3.65000 | 327,680 |\n| win64-s0 | 3.67000 | 327,680 |\n\nB = [3.6, 3.62, 3.61] (['base-s0', 'base-s1', 'base-s2'])\nW = [3.66, 3.64, 3.65] (['win16-s0', 'win16-s1', 'win16-s2'])\nwin1-s0 = 3.605\nwin64-s0 = 3.67\n\nPer-source table: per_source.md. Routing mutual information: routing_mi.csv.\nThe book source has only ~225k validation tokens, so its row is low-sample.\n\n",
+  "files": {
+   "loads.png": "05f2cb998be1e2e3c53698ca036fb1aff583d15ca3fa07a45bc737a20078ea5e",
+   "main_comparison.png": "09642107844df5b4da19506d0310017236a4f42edfbd460b96c290227130d449",
+   "per_source.csv": "9d8ad6d80dacbc08bdd5847ad5f2b03e6ed8c03eeaebf0c5208da13120f7d41e",
+   "per_source.md": "0bcc0202453e310ebabf75d74f7ab79ed5eaa37326191f5d14b665855569f25a",
+   "routing_heatmap.png": "1793169568c9c69c37332ee351943b87a9fc57b1ea35c4d129621443325ff24f",
+   "routing_mi.csv": "47f73bc074c9c855e46c67fde4e41f17b93c56d0217cade12e51040d76a1ac3a",
+   "sanity.png": "ff522d3318adfcd0b87c46191a6cda6f2fb189fe31e2b3bd72c3d873719febe7",
+   "summary.md": "fdc4ea5814841865d7d787bc90ca5fc00c054fd061ee94d47712e1f0cb0a3a90",
+   "window_sweep.png": "fe9164239f938c977d42f9361880b96bf0f8d4379f32d8124063a9c1518a7ccd"
+  }
+ },
+ "no_verdict": {
+  "returncode": 2,
+  "stdout": "# MoE window-routing pilot: summary\n\n**No verdict yet.** Missing: at least 2 finished base-s* runs (have 1); at least 2 finished win16-s* runs (have 1); finished win1-s0; finished win64-s0.\n\n## Direct sanity comparison: win1-s0 vs base-s0\n\nBoth use seed 0 and LR_BASE, and n=1 routing equals per-token routing, so they should agree up to floating-point rounding. Reported alongside the decision rule above; it does not change the verdict.\n\nNot available yet: needs finished win1-s0 and base-s0.\n\n## Final val_overall per run\n\n| run | final val_overall | tokens |\n|---|---|---|\n| base-s0 | 3.60000 | 327,680 |\n| win16-s0 | 3.66000 | 327,680 |\n\nB = [3.6] (['base-s0'])\nW = [3.66] (['win16-s0'])\nwin1-s0 = None\nwin64-s0 = None\n\nPer-source table: per_source.md. Routing mutual information: routing_mi.csv.\nThe book source has only ~225k validation tokens, so its row is low-sample.\n\n",
+  "files": {
+   "loads.png": "05f2cb998be1e2e3c53698ca036fb1aff583d15ca3fa07a45bc737a20078ea5e",
+   "main_comparison.png": "1d79afe6bcbeb9f54a974b4df6fc16d8dae94bbb6da3c8a68e1e46eca227cdbc",
+   "per_source.csv": "b0ee2857e490fdd9337f5502f010139d11f536b5af66881ddc2bea8e1cdbcc71",
+   "per_source.md": "aac966dfdf980cde6cd4bfa8ea3aa7ffe659b6f6b788cfad09a339ba0a25145c",
+   "routing_heatmap.png": "1793169568c9c69c37332ee351943b87a9fc57b1ea35c4d129621443325ff24f",
+   "routing_mi.csv": "0eb2f827ce4b3a4d204e23d1b39a7c4daa3b7929eb6d2b42d4cd81c463ba8187",
+   "sanity.png": "62c4bacd5f7732c384011cce2ecf5c24088d7ea76655d697bf3680b34994181b",
+   "summary.md": "bd42c3ddda1f942fc9b58fae46991f1cc8873714c53f3ce4f34a43bc5b501c15",
+   "window_sweep.png": "7281220a604d2fe11b8884fad43f9f631f229162632c30e05d0ba2f7ba074370"
+  }
+ },
+ "lr_check": {
+  "returncode": 0,
+  "stdout": "lr-base-1e-3     lr=0.001    final val_overall=3.3000\nlr-base-2e-3     lr=0.002    final val_overall=3.2050\nlr-base-4e-3     lr=0.004    final val_overall=3.2000\nbase: best lr 0.004 (3.2000); within 0.01 of best: [0.002, 0.004]; chosen LR_BASE = 0.002\nlr-win16-1e-3    lr=0.001    final val_overall=3.4000\nlr-win16-2e-3    lr=0.002    final val_overall=3.2500\nlr-win16-4e-3    lr=0.004    final val_overall=3.3500\nwin16: best lr 0.002 (3.2500); within 0.01 of best: [0.002]; chosen LR_WIN = 0.002\nwrote <WORK>/chosen_lr.py\n",
+  "chosen_lr": "# Peak learning rates chosen by the LR check.\n# lr-base-1e-3     lr=0.001    final val_overall=3.3000\n# lr-base-2e-3     lr=0.002    final val_overall=3.2050\n# lr-base-4e-3     lr=0.004    final val_overall=3.2000\n# base: best lr 0.004 (3.2000); within 0.01 of best: [0.002, 0.004]; chosen LR_BASE = 0.002\n# lr-win16-1e-3    lr=0.001    final val_overall=3.4000\n# lr-win16-2e-3    lr=0.002    final val_overall=3.2500\n# lr-win16-4e-3    lr=0.004    final val_overall=3.3500\n# win16: best lr 0.002 (3.2500); within 0.01 of best: [0.002]; chosen LR_WIN = 0.002\nLR_BASE = 0.002\nLR_WIN = 0.002\n"
+ },
+ "partial": {
+  "returncode": 0,
+  "stdout": "Partial comparison at step 20 (0.2M tokens): the latest eval step shared by all 8 started main runs.\nInterim numbers from periodic evals (eval_batches per source), not final results; no verdict.\nLimited by: base-s0, base-s1, base-s2, win1-s0, win16-s0, win16-s1, win16-s2, win64-s0\n\narm     runs       mean       std        min        max\nbase       3    6.92385   0.00000    6.92385    6.92385\nwin16      3    6.92385   0.00000    6.92385    6.92385\nwin1       1    6.92385         -    6.92385    6.92385\nwin64      1    6.92385         -    6.92385    6.92385\n\ngap = mean(base) - mean(win16): +0.00000 (positive = window arm better); pooled s: 0.00000\nwin1-s0 - base-s0: +0.00000\n"
+ }
+}
