@@ -56,9 +56,13 @@ k="$#"
 cpus=$((4 * k)); [ "$cpus" -gt 16 ] && cpus=16
 mem=$((48 * k)); [ "$mem" -gt 200 ] && mem=200
 
+# optional: SBATCH_DEPENDENCY=afterok:<jobid> adds a dependency (unset: the command is unchanged)
+dep=()
+[ -n "${SBATCH_DEPENDENCY:-}" ] && dep=(--dependency="$SBATCH_DEPENDENCY")
+
 mkdir -p "$OUT_ROOT/slurm"
 set -x
 "$SBATCH" -p mit_normal_gpu --gres="gpu:$gpu:1" -c "$cpus" --mem="${mem}G" -t "$time_limit" -J "$group" \
     --output="$OUT_ROOT/slurm/%x-%j.out" \
     --export="ALL,PROJECT=$PROJECT,CODE_DIR=$CODE_DIR,OUT_ROOT=$OUT_ROOT,DATA_DIR=$DATA_DIR" \
-    "$HERE/run_group.sbatch" "$@"
+    ${dep[@]+"${dep[@]}"} "$HERE/run_group.sbatch" "$@"

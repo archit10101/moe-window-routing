@@ -20,6 +20,7 @@ def test_scripts_exist():
                  "slurm/submit_extra_seeds.sh", "slurm/submit_smoke.sh", "slurm/benchmark.sh", "slurm/status.sh",
                  "slurm/submit_followups.sh", "slurm/submit_diagnostics.sh",
                  "slurm/submit_m2d2_lr_check.sh", "slurm/submit_slim120.sh", "slurm/submit_locked_test.sh",
+                 "slurm/submit_m2d2_all.sh", "slurm/after_m2d2_all.sh", "slurm/m2d2_common.sh",
                  "aws/setup_instance.sh", "aws/launch_run.sh", "aws/launch_instance.sh"]:
         assert f"scripts/{want}" in names, want
 
@@ -262,3 +263,158 @@ def test_submit_locked_test_covers_all_designs(fake_sbatch):
     want = ([f"m2d2-{a}-s{s}" for a in ("base", "win16") for s in range(5)]
             + [f"{p}-{a}-s{s}" for p in ("m2d2h4", "m2d2r4") for s in range(4) for a in ("base", "win16")])
     assert sorted(listed) == sorted(want) and len(listed) == 26
+
+
+# ---- submit_m2d2_all.sh / after_m2d2_all.sh (M2D2_UNEVEN_PROMPT.md part 8) ----
+
+ALL_ORDER = (["m2d2-base-s0", "m2d2-win1-s0", "m2d2-win16-s0",
+              "m2d2h4-base-s0", "m2d2h4-win16-s0", "m2d2r4-base-s0", "m2d2r4-win16-s0"]
+             + [f"{p}-{a}-s{s}" for s in (1, 2, 3) for p in ("m2d2", "m2d2h4", "m2d2r4") for a in ("base", "win16")]
+             + ["m2d2-base-s4", "m2d2-win16-s4", "m2d2-win64-s0"])
+M2D2_CONFIGS = ["Technology_and_applied_sciences", "Natural_and_physical_sciences", "Mathematics_and_logic",
+                "Health_and_fitness", "History_and_events", "Culture_and_the_arts", "Society_and_social_sciences",
+                "Philosophy_and_thinking"]
+
+
+def project_with_raw(tmp_path):
+    project = tmp_path / "project"
+    for c in M2D2_CONFIGS:
+        (project / "raw_m2d2" / c).mkdir(parents=True)
+        for f in ("train.txt", "valid.txt", "test.txt"):
+            (project / "raw_m2d2" / c / f).write_text("x\n")
+    return project
+
+
+def fake_build(folder, uneven=False, ok=True):
+    folder.mkdir(parents=True)
+    (folder / "meta.json").write_text("{}")
+    lines = ["OK: none of the 10 doc_hashes appears in two splits or two domains." if ok else "something else"]
+    if uneven and ok:
+        lines.append("OK: all test/val/calib files are byte-identical to the reference build /x (24 files)")
+    (folder / "sanity.txt").write_text("\n".join(lines) + "\n")
+
+
+def job_names(calls):
+    return [c.split(" -J ")[1].split()[0] for c in calls]
+
+
+def test_m2d2_common_configs_match_prepare():
+    sys.path.insert(0, os.path.join(REPO, "data", "m2d2"))
+    import prepare
+    text = open(os.path.join(REPO, "scripts", "slurm", "m2d2_common.sh")).read()
+    assert sorted(prepare.DOMAINS.values()) == sorted(M2D2_CONFIGS)
+    assert all(c in text for c in M2D2_CONFIGS)
+    assert prepare.REFERENCE_OK in text  # the sanity line build_ok looks for
+
+
+def test_submit_all_dry_run(fake_sbatch, tmp_path):
+    project = project_with_raw(tmp_path)
+    env = dict(fake_sbatch.env, PROJECT=str(project))
+    proc, calls = fake_sbatch.run("submit_m2d2_all.sh", "b200", "--dry_run", env=env)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert calls == []  # nothing submitted
+    sb = [l[len("DRY RUN: sbatch "):] for l in proc.stdout.splitlines() if l.startswith("DRY RUN: sbatch ")]
+    names = job_names(sb)
+    assert names == (["build-m2d2-even", "build-m2d2-hist4x", "build-m2d2-rep4x"] + M2D2_LR + ["m2d2-after"]
+                     + ["slim120-base-s0", "slim120-win16-s0", "slim120-base-s1", "slim120-win16-s1",
+                        "slim120-base-s2", "slim120-win16-s2"])
+    assert "--dependency" not in sb[0] and "build_m2d2.sbatch title" in sb[0]
+    for c in sb[1:3] + sb[3:9]:
+        assert "--dependency=afterok:900" in c, c
+    assert "--train_quota_override history=60000000 --variant hist4x --reference_dir" in sb[1]
+    assert "--train_quota_override philosophy=60000000 --fallback_domain natural_sciences --variant rep4x" in sb[2]
+    assert "-p mit_normal --no-requeue" in sb[9] and "--dependency=afterany:903:904:905:906:907:908" in sb[9]
+    assert sb[9].endswith("after_m2d2_all.sh b200 901 902")
+    planned = [l.split()[3] for l in proc.stdout.splitlines() if l.startswith("DRY RUN: submit.sh ")]
+    assert planned == ALL_ORDER
+    plan = {l.split()[3]: l for l in proc.stdout.splitlines() if l.startswith("DRY RUN: submit.sh ")}
+    assert "00:50:00" in plan["m2d2h4-base-s2"] and "--dependency=afterok:901" in plan["m2d2h4-base-s2"]
+    assert "--dependency=afterok:902" in plan["m2d2r4-win16-s3"] and "00:40:00" in plan["m2d2-win64-s0"]
+    assert "dependency tree:" in proc.stdout and "would submit 28 runs" in proc.stdout
+
+
+def test_submit_all_real_and_skips_existing_builds(fake_sbatch, tmp_path):
+    project = project_with_raw(tmp_path)
+    env = dict(fake_sbatch.env, PROJECT=str(project))
+    proc, calls = fake_sbatch.run("submit_m2d2_all.sh", "b200", env=env)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert len(calls) == 16 and job_names(calls)[:3] == ["build-m2d2-even", "build-m2d2-hist4x", "build-m2d2-rep4x"]
+    assert all("--dependency=afterok:101" in c for c in calls[1:9])
+    assert "--dependency=afterany:104:105:106:107:108:109" in calls[9] and calls[9].endswith("b200 102 103")
+    assert all("--dependency" not in c for c in calls[10:])
+
+    # even and hist4x already built and checked: only rep4x is built, with no dependency to wait for
+    project2 = project_with_raw(tmp_path / "second")
+    fake_build(project2 / "data_m2d2w8")
+    fake_build(project2 / "data_m2d2w8_hist4x", uneven=True)
+    fake_build(project2 / "data_m2d2w8_rep4x_unused")  # unrelated folder, ignored
+    calls_before = len(calls)
+    proc, calls = fake_sbatch.run("submit_m2d2_all.sh", "b200", env=dict(env, PROJECT=str(project2)))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    new = calls[calls_before:]
+    assert job_names(new)[:7] == ["build-m2d2-rep4x"] + M2D2_LR
+    assert all("--dependency" not in c for c in new[:7])
+    assert new[7].endswith(f"after_m2d2_all.sh b200 none {100 + calls_before + 1}")
+    assert "skipping" in proc.stdout
+
+
+def test_submit_all_refuses(fake_sbatch, tmp_path):
+    env = dict(fake_sbatch.env, PROJECT=str(tmp_path / "empty"))
+    proc, calls = fake_sbatch.run("submit_m2d2_all.sh", "b200", env=env)
+    assert proc.returncode != 0 and "prepare.py --download --raw_dir" in proc.stderr and calls == []
+    project = project_with_raw(tmp_path)
+    fake_build(project / "data_m2d2w8", ok=False)
+    proc, calls = fake_sbatch.run("submit_m2d2_all.sh", "b200", env=dict(env, PROJECT=str(project)))
+    assert proc.returncode != 0 and "move it away" in proc.stderr and calls == []
+
+
+def after_env(tmp_path, fake_sbatch, squeue_state):
+    env, code = chain_env(tmp_path, fake_sbatch.env)
+    write_lr_runs(tmp_path / "runs", dict(zip(M2D2_LR, [3.40, 3.305, 3.30, 3.45, 3.36, 3.38])))
+    sq = tmp_path / "fakebin" / "squeue"
+    sq.write_text(f"#!/bin/bash\necho '{squeue_state}'\n")
+    sq.chmod(0o755)
+    return env, code
+
+
+def test_after_m2d2_all_submits_in_order(fake_sbatch, tmp_path):
+    env, code = after_env(tmp_path, fake_sbatch, "PENDING")
+    fake_build(tmp_path / "project" / "data_m2d2w8_rep4x", uneven=True)  # rep4x already built and checked
+    proc, calls = fake_sbatch.run("after_m2d2_all.sh", "b200", "777", "none", env=env)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "LR_BASE = 0.0005" in proc.stdout
+    assert submitted_runs(calls) == ALL_ORDER
+    for c, run in zip(calls, ALL_ORDER):
+        assert ("-t 00:50:00" if run.startswith(("m2d2h4", "m2d2r4")) else "-t 00:40:00") in c, c
+        assert ("--dependency=afterok:777" in c) == run.startswith("m2d2h4-"), c
+
+
+def test_after_m2d2_all_failed_build_and_failed_analysis(fake_sbatch, tmp_path):
+    env, code = after_env(tmp_path, fake_sbatch, "")  # the hist4x build job is gone and its folder is not built
+    fake_build(tmp_path / "project" / "data_m2d2w8_rep4x", uneven=True)
+    proc, calls = fake_sbatch.run("after_m2d2_all.sh", "b200", "778", "none", env=env)
+    assert proc.returncode != 0 and "hist4x build failed" in proc.stderr
+    assert submitted_runs(calls) == [r for r in ALL_ORDER if not r.startswith("m2d2h4-")]
+
+    env2, _ = chain_env(tmp_path / "noanalysis", fake_sbatch.env)
+    (tmp_path / "runs").mkdir(exist_ok=True)
+    proc, calls2 = fake_sbatch.run("after_m2d2_all.sh", "b200", "none", "none",
+                                   env=dict(env2, OUT_ROOT=str(tmp_path / "empty_runs")))
+    assert proc.returncode != 0 and "submitting no runs" in proc.stderr and len(calls2) == len(calls)
+
+
+def test_status_lists_builds(tmp_path):
+    project = tmp_path / "project"
+    fake_build(project / "data_m2d2w8")
+    fake_build(project / "data_m2d2w8_hist4x", uneven=True, ok=False)
+    (project / "data_m2d2w8_rep4x").mkdir(parents=True)
+    (project / "runs" / "m2d2h4-base-s0").mkdir(parents=True)
+    proc = subprocess.run(["bash", os.path.join(REPO, "scripts", "slurm", "status.sh")], capture_output=True,
+                          text=True, env=dict(os.environ, PROJECT=str(project), PYTHON=sys.executable,
+                                              PATH="/usr/bin:/bin"))
+    assert proc.returncode == 0, proc.stderr
+    out = proc.stdout
+    assert "m2d2h4-base-s0" in out and "M2D2 data builds:" in out
+    assert "data_m2d2w8            checks passed" in out
+    assert "data_m2d2w8_hist4x     CHECKS NOT PASSED" in out
+    assert "data_m2d2w8_rep4x      no build yet" in out
