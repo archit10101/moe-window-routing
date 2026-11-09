@@ -41,7 +41,12 @@ MODEL_KEYS = ["block_size", "vocab_size", "n_layer", "n_head", "n_embd", "n_exp"
 # Keys that must match between a checkpoint and the config resuming from it.
 RESUME_MUST_MATCH = MODEL_KEYS + ["seed", "lr", "min_lr_ratio", "warmup_frac", "weight_decay",
                                   "beta1", "beta2", "grad_clip", "batch_size", "total_tokens",
-                                  "aux_coef", "z_coef", "dtype", "router_lr_mult"]
+                                  "aux_coef", "z_coef", "dtype", "router_lr_mult", "eval_split"]
+
+# Splits train.py may evaluate on. The locked test split is never read here (docs/M2D2_PROMPT.md rule 4).
+TRAIN_EVAL_SPLITS = ("val", "calib")
+LOCKED_TEST_REFUSAL = ("train.py: eval_split='test' is refused. The locked test split is evaluated exactly once, "
+                       "by analysis/eval_locked_test.py, after every decision is made; use 'val' or 'calib'.")
 
 CTX_SEED_OFFSET = 1_000_003  # the "both" context routers are initialized from seed + this
 
@@ -93,6 +98,10 @@ def validate_config(cfg):
         sys.exit(f"train.py: window_layers has {len(cfg['window_layers'])} entries, n_layer is {cfg['n_layer']}")
     if cfg["batch_size"] % cfg["micro_batch_size"] != 0:
         sys.exit("train.py: batch_size must be a multiple of micro_batch_size")
+    if cfg["eval_split"] == "test":
+        sys.exit(LOCKED_TEST_REFUSAL)
+    if cfg["eval_split"] not in TRAIN_EVAL_SPLITS:
+        sys.exit(f"train.py: eval_split must be one of {TRAIN_EVAL_SPLITS}, not {cfg['eval_split']!r}")
 
 
 def derived(cfg):
@@ -138,15 +147,22 @@ def read_meta(data_dir):
     return meta, shares
 
 
-def load_val_sets(data_dir, cfg):
-    """Per source: (memmap, fixed offsets). Offsets are drawn once with rng([12345, i]),
-    i = the source's index in sorted order. Offsets may repeat when a file is small."""
+def load_val_sets(data_dir, cfg, split=None, allow_locked_test=False):
+    """Per source: (memmap, fixed offsets) for <split>_<source>.bin, split = cfg's eval_split by default.
+    Offsets are drawn once with rng([12345, i]), i = the source's index in sorted order. Offsets may
+    repeat when a file is small. The locked "test" split is only read with allow_locked_test=True
+    (analysis/eval_locked_test.py)."""
+    split = split or cfg.get("eval_split", "val")
+    if split == "test" and not allow_locked_test:
+        sys.exit(LOCKED_TEST_REFUSAL)
+    if split not in TRAIN_EVAL_SPLITS + ("test",):
+        sys.exit(f"train.py: unknown evaluation split {split!r}")
     _, shares = read_meta(data_dir)
     T = cfg["block_size"]
     n = cfg["final_eval_batches"] * cfg["eval_batch_size"]
     val_sets = {}
     for i, src in enumerate(sorted(shares)):
-        path = os.path.join(data_dir, f"val_{src}.bin")
+        path = os.path.join(data_dir, f"{split}_{src}.bin")
         if not os.path.exists(path):
             print(f"WARNING: {path} missing; skipping source {src}")
             continue

@@ -53,3 +53,7 @@ resume = True
 router_input = 'replace'  # 'replace' (pilot) or 'both': router sees h plus a context router on the window mean
 router_lr_mult = 1.0  # LR multiplier for router parameters (router_norm, router, context router)
 log_router_grad = False  # add per-layer router_grad_norm (before clipping) to train log lines
+
+# M2D2 replication (docs/M2D2_PROMPT.md): which split periodic and final evals read ('val' or 'calib').
+# 'test' is refused: the locked test split is read only by analysis/eval_locked_test.py.
+eval_split = 'val'

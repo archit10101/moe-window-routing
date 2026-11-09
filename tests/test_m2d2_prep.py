@@ -283,11 +283,18 @@ def test_m2d2_meta_compatible(tmp_path):
     for key in ("train_tokens_total", "train_share_by_source", "val_tokens_by_source", "eot_token", "dtype",
                 "created", "calib_tokens_by_source", "test_tokens_by_source"):
         assert key in meta, key
-    cfg = tiny_cfg(str(data), tmp_path / "runs", "m2d2-tiny", steps=5)
-    assert T.train(cfg) == 0
-    final = [json.loads(l) for l in open(tmp_path / "runs" / "m2d2-tiny" / "log.jsonl") if '"final"' in l][-1]
-    assert set(final["val"]) == set(P.DOMAINS)
-    assert len(train_records(tmp_path / "runs" / "m2d2-tiny")) == 5
+    finals = {}
+    for split in ("val", "calib"):
+        name = f"m2d2-tiny-{split}"
+        cfg = tiny_cfg(str(data), tmp_path / "runs", name, steps=5, eval_split=split)
+        assert T.train(cfg) == 0
+        log = [json.loads(l) for l in open(tmp_path / "runs" / name / "log.jsonl")]
+        finals[split] = [r for r in log if r["type"] == "final"][-1]
+        assert set(finals[split]["val"]) == set(P.DOMAINS)
+        assert log[0]["config"]["eval_split"] == split
+        assert len(train_records(tmp_path / "runs" / name)) == 5
+    # same model and training, different evaluation files
+    assert finals["val"]["val_overall"] != finals["calib"]["val_overall"]
 
 
 def test_build_sbatch_syntax():
