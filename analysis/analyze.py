@@ -98,9 +98,17 @@ def is_main_run(name):
 # -----------------------------------------------------------------------------
 # LR check
 
+def eval_split_of(run):
+    """The split a run's evals used (from its header config); runs before eval_split existed used val."""
+    return ((run.get("header") or {}).get("config") or {}).get("eval_split", "val")
+
+
 def lr_check(runs, write, chosen_path):
     chosen = {}
     lines = []
+    lr_runs = [r for n, r in runs.items() if n.startswith(("lr-base-", "lr-win16-"))]
+    calib = bool(lr_runs) and all(eval_split_of(r) == "calib" for r in lr_runs)
+    metric = "final calib_overall (calibration split)" if calib else "final val_overall"
     for arm, prefix, var in (("base", "lr-base-", "LR_BASE"), ("win16", "lr-win16-", "LR_WIN")):
         results = []
         for name, run in runs.items():
@@ -109,7 +117,7 @@ def lr_check(runs, write, chosen_path):
             lr = float(name[len(prefix):])
             v = final_val(run)
             results.append((lr, v))
-            lines.append(f"{name:<16} lr={lr:<8g} final val_overall="
+            lines.append(f"{name:<16} lr={lr:<8g} {metric}="
                          + (f"{v:.4f}" if v is not None else "NOT FINISHED"))
         done = [(lr, v) for lr, v in results if v is not None]
         if not done:
@@ -127,6 +135,8 @@ def lr_check(runs, write, chosen_path):
         with open(chosen_path, "w") as f:
             f.write("# Peak learning rates chosen by the LR check.\n")
             f.write(f"# Written by analysis/analyze.py --lr_check --write on {time.strftime('%Y-%m-%d %H:%M')}.\n")
+            if calib:
+                f.write("# The LR-check losses below are on the calibration split (calib_*.bin), not validation.\n")
             for line in lines:
                 f.write(f"# {line}\n")
             f.write(f"LR_BASE = {chosen['LR_BASE']!r}\nLR_WIN = {chosen['LR_WIN']!r}\n")
@@ -154,6 +164,44 @@ def decide(B, W, win1, win64):
         verdict = "INCONCLUSIVE"
     return dict(verdict=verdict, s=s, gap=gap, mean_B=mean_b, mean_W=mean_w, sanity_ok=sanity,
                 win1_minus_meanB=win1 - mean_b, win64_minus_meanB=win64 - mean_b)
+
+
+def decide_available(B, W, win1=None, win64=None):
+    """The same rule as decide(), with a criterion skipped when its run is missing (--prefix mode):
+    no win1-s0 -> no sanity check; no win64-s0 -> PROMISING needs only gap > 2s. The skipped
+    criteria are listed in the result."""
+    B, W = np.asarray(B, float), np.asarray(W, float)
+    s = math.sqrt((np.var(B, ddof=1) + np.var(W, ddof=1)) / 2)
+    mean_b, mean_w = float(B.mean()), float(W.mean())
+    gap = mean_b - mean_w
+    skipped = []
+    if win1 is None:
+        sanity = True
+        skipped.append("sanity check |win1-s0 - mean(B)| <= 2s (no finished win1-s0)")
+    else:
+        sanity = abs(win1 - mean_b) <= 2 * s
+    if win64 is None:
+        win64_ok = True
+        skipped.append("PROMISING's condition win64-s0 <= mean(B) + 2s (no finished win64-s0)")
+    else:
+        win64_ok = win64 <= mean_b + 2 * s
+    if not sanity:
+        verdict = "INVALID: sanity check failed"
+    elif gap > 2 * s and win64_ok:
+        verdict = "PROMISING"
+    elif gap < -2 * s:
+        verdict = "NEGATIVE"
+    else:
+        verdict = "INCONCLUSIVE"
+    return dict(verdict=verdict, s=s, gap=gap, mean_B=mean_b, mean_W=mean_w, sanity_ok=sanity, skipped=skipped,
+                win1_minus_meanB=None if win1 is None else win1 - mean_b,
+                win64_minus_meanB=None if win64 is None else win64 - mean_b)
+
+
+def select_prefix(runs, prefix):
+    """Runs whose names start with prefix, keyed (and named) with the prefix stripped."""
+    return {name[len(prefix):]: {**run, "name": name[len(prefix):], "full_name": name}
+            for name, run in runs.items() if name.startswith(prefix)}
 
 
 def direct_comparison(runs):
@@ -425,7 +473,8 @@ def plot_heatmap_and_mi(runs, png_path, csv_path):
     plt.close(fig)
 
 
-def main_analysis(runs, out_dir):
+def main_analysis(runs, out_dir, prefix=None):
+    """prefix: runs were selected with --prefix (names stripped); missing win1/win64 criteria are skipped."""
     os.makedirs(out_dir, exist_ok=True)
     base = [r for r in seed_runs(runs, "base") if r["final"] is not None]
     win = [r for r in seed_runs(runs, "win16") if r["final"] is not None]
@@ -435,14 +484,18 @@ def main_analysis(runs, out_dir):
         missing.append(f"at least 2 finished base-s* runs (have {len(base)})")
     if len(win) < 2:
         missing.append(f"at least 2 finished win16-s* runs (have {len(win)})")
-    if win1 is None:
-        missing.append("finished win1-s0")
-    if win64 is None:
-        missing.append("finished win64-s0")
+    if prefix is None:
+        if win1 is None:
+            missing.append("finished win1-s0")
+        if win64 is None:
+            missing.append("finished win64-s0")
 
     res = None
     if not missing:
-        res = decide([final_val(r) for r in base], [final_val(r) for r in win], win1, win64)
+        if prefix is None:
+            res = decide([final_val(r) for r in base], [final_val(r) for r in win], win1, win64)
+        else:
+            res = decide_available([final_val(r) for r in base], [final_val(r) for r in win], win1, win64)
 
     cmp = direct_comparison(runs)
     plot_sanity(runs, cmp, os.path.join(out_dir, "sanity.png"))
@@ -454,9 +507,18 @@ def main_analysis(runs, out_dir):
     plot_heatmap_and_mi(runs, os.path.join(out_dir, "routing_heatmap.png"), os.path.join(out_dir, "routing_mi.csv"))
 
     lines = ["# MoE window-routing pilot: summary", ""]
+    if prefix is not None:
+        splits = sorted({eval_split_of(r) for r in runs.values()})
+        lines += [f"Runs with prefix `{prefix}` (names below are shown without it); evaluation split: "
+                  f"{', '.join(splits)}.", ""]
     if res is None:
         lines += ["**No verdict yet.** Missing: " + "; ".join(missing) + ".", ""]
     else:
+        w1, w64 = res["win1_minus_meanB"], res["win64_minus_meanB"]
+        w1_row = ("| win1-s0 - mean(B) | skipped (no finished win1-s0) |" if w1 is None else
+                  f"| win1-s0 - mean(B) | {w1:+.5f} (sanity {'ok' if res['sanity_ok'] else 'FAILED'}) |")
+        w64_row = ("| win64-s0 - mean(B) | skipped (no finished win64-s0) |" if w64 is None else
+                   f"| win64-s0 - mean(B) | {w64:+.5f} |")
         lines += [f"**Verdict: {res['verdict']}**", "",
                   "Decision rule (PROMPT.md part 8): s = sqrt((var(B) + var(W)) / 2) with ddof = 1; "
                   "gap = mean(B) - mean(W) (positive = window arm better). Sanity: |win1-s0 - mean(B)| <= 2s. "
@@ -464,9 +526,9 @@ def main_analysis(runs, out_dir):
                   "| quantity | value |", "|---|---|",
                   f"| mean(B) | {res['mean_B']:.5f} |", f"| mean(W) | {res['mean_W']:.5f} |",
                   f"| gap = mean(B) - mean(W) | {res['gap']:+.5f} |", f"| s | {res['s']:.5f} |",
-                  f"| 2s | {2 * res['s']:.5f} |",
-                  f"| win1-s0 - mean(B) | {res['win1_minus_meanB']:+.5f} (sanity {'ok' if res['sanity_ok'] else 'FAILED'}) |",
-                  f"| win64-s0 - mean(B) | {res['win64_minus_meanB']:+.5f} |", ""]
+                  f"| 2s | {2 * res['s']:.5f} |", w1_row, w64_row, ""]
+        if res.get("skipped"):
+            lines += ["Skipped criteria (runs not present under this prefix): " + "; ".join(res["skipped"]) + ".", ""]
     lines += ["## Direct sanity comparison: win1-s0 vs base-s0", "",
               "Both use seed 0 and LR_BASE, and n=1 routing equals per-token routing, so they should agree up to "
               "floating-point rounding. Reported alongside the decision rule above; it does not change the verdict.",
@@ -489,8 +551,11 @@ def main_analysis(runs, out_dir):
     lines += ["", f"B = {[round(final_val(r), 5) for r in base]} ({[r['name'] for r in base]})",
               f"W = {[round(final_val(r), 5) for r in win]} ({[r['name'] for r in win]})",
               f"win1-s0 = {win1}", f"win64-s0 = {win64}", "",
-              "Per-source table: per_source.md. Routing mutual information: routing_mi.csv.",
-              "The book source has only ~225k validation tokens, so its row is low-sample.", ""]
+              "Per-source table: per_source.md. Routing mutual information: routing_mi.csv."]
+    has_book = any("book" in r["final"]["val"] for r in runs.values() if r["final"] is not None)
+    if prefix is None or has_book:
+        lines.append("The book source has only ~225k validation tokens, so its row is low-sample.")
+    lines.append("")
     text = "\n".join(lines)
     with open(os.path.join(out_dir, "summary.md"), "w") as f:
         f.write(text)
@@ -504,9 +569,13 @@ def main():
     ap.add_argument("--out_dir", help="output folder (required for the main analysis)")
     ap.add_argument("--lr_check", action="store_true", help="pick each arm's LR from the lr-* runs")
     ap.add_argument("--write", action="store_true", help="with --lr_check: write config/chosen_lr.py")
-    ap.add_argument("--chosen_lr_path", default=os.path.join(REPO, "config", "chosen_lr.py"))
+    ap.add_argument("--lr_file", "--chosen_lr_path", dest="chosen_lr_path",
+                    default=os.path.join(REPO, "config", "chosen_lr.py"),
+                    help="where --lr_check --write writes LR_BASE / LR_WIN (default config/chosen_lr.py)")
     ap.add_argument("--partial", action="store_true",
                     help="print an interim comparison at the latest eval step shared by all started main runs")
+    ap.add_argument("--prefix", help="only runs whose names start with this (e.g. m2d2-, slim120-); the prefix is "
+                                     "stripped before matching base-s*, win16-s*, win1-s0, win64-s0, lr-*")
     args = ap.parse_args()
     if args.write and not args.lr_check:
         ap.error("--write only applies with --lr_check")
@@ -517,6 +586,10 @@ def main():
     runs = read_runs(args.runs_dir)
     if not runs:
         sys.exit(f"no runs with log.jsonl in {args.runs_dir}")
+    if args.prefix:
+        runs = select_prefix(runs, args.prefix)
+        if not runs:
+            sys.exit(f"no runs named {args.prefix}* with log.jsonl in {args.runs_dir}")
     if args.lr_check:
         lr_check(runs, args.write, args.chosen_lr_path)
         return
@@ -526,7 +599,7 @@ def main():
             sys.exit(f"no main run (base-s*, win16-s*, win1-s0, win64-s0) has logged an eval in {args.runs_dir}")
         print(format_partial(p))
         return
-    res = main_analysis(runs, args.out_dir)
+    res = main_analysis(runs, args.out_dir, prefix=args.prefix or None)
     if res is None:
         sys.exit(2)
 
