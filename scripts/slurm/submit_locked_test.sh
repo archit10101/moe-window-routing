@@ -1,6 +1,6 @@
 #!/bin/bash
-# The single evaluation of the locked M2D2 test split (docs/M2D2_PROMPT.md parts 2, 7 and 8):
-# one 1-GPU job running analysis/eval_locked_test.py on m2d2-base-s0..s4 and m2d2-win16-s0..s4.
+# The single evaluation of the locked M2D2 test split (docs/M2D2_PROMPT.md parts 2, 7, 8; M2D2_UNEVEN_PROMPT.md part 7):
+# one 1-GPU job running analysis/eval_locked_test.py on the even (m2d2-), hist4x (m2d2h4-) and rep4x (m2d2r4-) runs.
 # Asks for confirmation first. Run it only after every decision (LRs, analysis) is final.
 #
 #   scripts/slurm/submit_locked_test.sh <gpu-type>
@@ -16,7 +16,11 @@ M2D2_DATA="${M2D2_DATA:-$PROJECT/data_m2d2w8}"
 LOCKED_OUT="${LOCKED_OUT:-$PROJECT/analysis/m2d2_locked_test}"
 LOCKED_LOG="${LOCKED_LOG:-$PROJECT/analysis/locked_test_log.txt}"
 SBATCH="${SBATCH:-sbatch}"
+# one invocation covers all three M2D2 designs (docs/M2D2_UNEVEN_PROMPT.md part 7): even s0-s4, hist4x and rep4x s0-s3
 RUNS="m2d2-base-s0,m2d2-base-s1,m2d2-base-s2,m2d2-base-s3,m2d2-base-s4,m2d2-win16-s0,m2d2-win16-s1,m2d2-win16-s2,m2d2-win16-s3,m2d2-win16-s4"
+for p in m2d2h4 m2d2r4; do
+    for s in 0 1 2 3; do RUNS="$RUNS,$p-base-s$s,$p-win16-s$s"; done
+done
 
 if [ "$#" -lt 1 ]; then
     echo "usage: $0 <gpu-type: b200|l40s|h200>" >&2
@@ -28,8 +32,9 @@ if [ "$1" = "--in-job" ]; then
     source "$(conda info --base)/etc/profile.d/conda.sh"
     conda activate moe
     cd "$CODE_DIR" || exit 1
-    python analysis/eval_locked_test.py --runs_dir "$OUT_ROOT" --data_dir "$M2D2_DATA" --out_dir "$LOCKED_OUT" \
-        --runs "$RUNS" --device cuda --log_file "$LOCKED_LOG"
+    # each run reads its own build's test files, which must be byte-identical to the even build's ($M2D2_DATA)
+    python analysis/eval_locked_test.py --runs_dir "$OUT_ROOT" --reference_data_dir "$M2D2_DATA" \
+        --out_dir "$LOCKED_OUT" --runs "$RUNS" --device cuda --log_file "$LOCKED_LOG"
     exit $?
 fi
 

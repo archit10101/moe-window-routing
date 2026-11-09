@@ -251,3 +251,14 @@ def test_status_lists_m2d2_runs(tmp_path):
                           capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
     assert sorted(line.split()[0] for line in proc.stdout.splitlines()[1:]) == sorted(names)
+
+
+def test_submit_locked_test_covers_all_designs(fake_sbatch):
+    text = open(os.path.join(REPO, "scripts", "slurm", "submit_locked_test.sh")).read()
+    assert "--reference_data_dir" in text and "--data_dir" not in text.split("--in-job", 1)[1]
+    proc, calls = fake_sbatch.run("submit_locked_test.sh", "b200", stdin="y\n")
+    assert proc.returncode == 0, proc.stderr
+    listed = proc.stdout.split("Runs: ", 1)[1].splitlines()[0].split()
+    want = ([f"m2d2-{a}-s{s}" for a in ("base", "win16") for s in range(5)]
+            + [f"{p}-{a}-s{s}" for p in ("m2d2h4", "m2d2r4") for s in range(4) for a in ("base", "win16")])
+    assert sorted(listed) == sorted(want) and len(listed) == 26

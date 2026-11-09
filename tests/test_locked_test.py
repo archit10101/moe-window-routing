@@ -102,3 +102,70 @@ def test_only_the_locked_test_script_reads_test_files():
                     if kw.arg == "allow_locked_test" and not (isinstance(kw.value, ast.Constant) and not kw.value.value):
                         users.append(os.path.relpath(path, REPO))
     assert users == ["analysis/eval_locked_test.py"]
+
+
+# ---- all three M2D2 designs in one invocation (docs/M2D2_UNEVEN_PROMPT.md part 7) ----
+
+DESIGNS = {"m2d2-": "data_m2d2w8", "m2d2h4-": "data_m2d2w8_hist4x", "m2d2r4-": "data_m2d2w8_rep4x"}
+DESIGN_RUNS = [f"{p}{arm}-s{s}" for p in DESIGNS for arm in ("base", "win16") for s in (0, 1)]
+
+
+def make_designs(locked, tmp_path):
+    root, data = locked
+    folders = {p: tmp_path / f for p, f in DESIGNS.items()}
+    for folder in folders.values():
+        shutil.copytree(data, folder)
+    runs = tmp_path / "runs"
+    for name in DESIGN_RUNS:
+        prefix = next(p for p in sorted(DESIGNS, key=len, reverse=True) if name.startswith(p))
+        shutil.copytree(root / "train" / ("w" if "-win16-" in name else "b"), runs / name)
+        log = runs / name / "log.jsonl"
+        recs = [json.loads(l) for l in open(log)]
+        recs[0]["config"]["data_dir"] = str(folders[prefix])
+        log.write_text("".join(json.dumps(r) + "\n" for r in recs))
+    return runs, folders
+
+
+def run_all(runs, reference, out, log, *extra):
+    return subprocess.run([sys.executable, EVAL, "--runs_dir", str(runs), "--reference_data_dir", str(reference),
+                           "--out_dir", str(out), "--runs", ",".join(DESIGN_RUNS), "--device", "cpu",
+                           "--log_file", str(log), *extra], capture_output=True, text=True, timeout=300)
+
+
+def test_locked_test_all_designs(locked, tmp_path):
+    runs, folders = make_designs(locked, tmp_path)
+    log = tmp_path / "locked_test_log.txt"
+
+    # a run whose test files differ from the even build's is refused before anything is evaluated
+    bad = folders["m2d2r4-"] / "test_c4.bin"
+    original = bad.read_bytes()
+    bad.write_bytes(original[:-2] + bytes([original[-2] ^ 1]) + original[-1:])
+    proc = run_all(runs, folders["m2d2-"], tmp_path / "refused", log)
+    assert proc.returncode != 0 and "test files differ" in proc.stderr and "m2d2r4-base-s0" in proc.stderr
+    assert not any((runs / n / "test_results.json").exists() for n in DESIGN_RUNS)
+    assert [e.split(" | ")[1] for e in log.read_text().splitlines()] == ["REFUSED"]
+    bad.write_bytes(original)
+    log.unlink()
+
+    # one invocation covers all three designs and logs once
+    proc = run_all(runs, folders["m2d2-"], tmp_path / "out", log)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    entries = log.read_text().splitlines()
+    assert [e.split(" | ")[1] for e in entries] == ["START", "COMPLETED"]
+    assert "m2d2h4-" in entries[1] and "m2d2r4-" in entries[1]
+    for name in DESIGN_RUNS:
+        r = json.loads((runs / name / "test_results.json").read_text())
+        prefix = next(p for p in sorted(DESIGNS, key=len, reverse=True) if name.startswith(p))
+        assert r["data_dir"] == str(folders[prefix])  # each run read its own (verified identical) files
+        assert len(r["routing_counts"]) == 2 and set(r["routing_counts"][0]) == {"book", "c4", "github"}
+    summary = (tmp_path / "out" / "summary.md").read_text()
+    for p in DESIGNS:
+        assert f"## Design `{p}`" in summary
+    assert summary.count("**Verdict (test split): ") == 3
+    decision = json.loads((tmp_path / "out" / "test_summary.json").read_text())["decision"]
+    assert set(decision) == set(DESIGNS)
+
+    # reuse is still refused
+    proc = run_all(runs, folders["m2d2-"], tmp_path / "again", log)
+    assert proc.returncode != 0 and "already evaluated" in proc.stderr
+    assert log.read_text().splitlines()[-1].split(" | ")[1] == "REFUSED"
