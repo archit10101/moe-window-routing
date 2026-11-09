@@ -36,6 +36,23 @@ def runs():
     table["smoke-gpu-base"] = dict(window_layers=BASE, seed=0, lr=2e-3, total_tokens=200 * 65536, extra=smoke_extra)
     table["smoke-gpu-win16"] = dict(window_layers=win(16), seed=0, lr=2e-3, total_tokens=200 * 65536,
                                     extra=smoke_extra)
+
+    # follow-up runs (docs/FOLLOWUP_PROMPT.md part 6): the LR used by the main runs (5e-4), written
+    # literally rather than read from chosen_lr.py; 500M tokens; router gradients always logged
+    def followup(windows, seed, **extra):
+        return dict(window_layers=windows, seed=seed, lr=5e-4, total_tokens=500 * M,
+                    extra={**extra, "log_router_grad": True})
+
+    for s in (0, 1):
+        table[f"both16-s{s}"] = followup(win(16), s, router_input="both")                    # E5
+        table[f"win16top1-s{s}"] = followup([0, 0, 0, 0, 0, 0, 0, 16], s)                     # E3
+        table[f"win16top2-s{s}"] = followup([0, 0, 0, 0, 0, 0, 16, 16], s)                    # E3
+        table[f"base-sh2048-s{s}"] = followup(BASE, s, shared_hidden=2048)                    # E2
+        table[f"win16-sh2048-s{s}"] = followup(win(16), s, shared_hidden=2048)                # E2
+        table[f"base-rlr3-s{s}"] = followup(BASE, s, router_lr_mult=3.0)                      # E4
+        table[f"win16-rlr3-s{s}"] = followup(win(16), s, router_lr_mult=3.0)                  # E4
+    table["base-rg-s0"] = followup(BASE, 0)                                                   # E4
+    table["win16-rg-s0"] = followup(win(16), 0)                                               # E4
     return table
 
 

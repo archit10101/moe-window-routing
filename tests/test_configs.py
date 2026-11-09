@@ -27,6 +27,22 @@ EXPECTED = {
     "smoke-gpu-win16": (W16, 0, 2e-3, 200 * 65536),
 }
 
+# FOLLOWUP_PROMPT.md part 6: name -> (window_layers, seed, settings that differ from pilot_base.py).
+# Every follow-up run: lr 5e-4, 500M tokens, log_router_grad True.
+TOP1 = [0, 0, 0, 0, 0, 0, 0, 16]
+TOP2 = [0, 0, 0, 0, 0, 0, 16, 16]
+FOLLOWUP = {
+    **{f"both16-s{s}": (W16, s, {"router_input": "both"}) for s in (0, 1)},
+    **{f"win16top1-s{s}": (TOP1, s, {}) for s in (0, 1)},
+    **{f"win16top2-s{s}": (TOP2, s, {}) for s in (0, 1)},
+    **{f"base-sh2048-s{s}": (B, s, {"shared_hidden": 2048}) for s in (0, 1)},
+    **{f"win16-sh2048-s{s}": (W16, s, {"shared_hidden": 2048}) for s in (0, 1)},
+    **{f"base-rlr3-s{s}": (B, s, {"router_lr_mult": 3.0}) for s in (0, 1)},
+    **{f"win16-rlr3-s{s}": (W16, s, {"router_lr_mult": 3.0}) for s in (0, 1)},
+    "base-rg-s0": (B, 0, {}),
+    "win16-rg-s0": (W16, 0, {}),
+}
+
 
 @pytest.fixture
 def config_tree(tmp_path, monkeypatch):
@@ -44,7 +60,21 @@ def test_generated_configs_are_current(tmp_path):
         (out / f"{name}.py").write_text(make_configs.render(name, spec))
         committed = open(os.path.join(REPO, "config", "runs", f"{name}.py")).read()
         assert committed == (out / f"{name}.py").read_text(), f"config/runs/{name}.py is stale"
-    assert set(make_configs.runs()) == set(EXPECTED)
+    assert set(make_configs.runs()) == set(EXPECTED) | set(FOLLOWUP)
+
+
+def test_new_configs(config_tree):
+    assert len(FOLLOWUP) == 16
+    base = T.default_config()
+    for name, (windows, seed, extra) in FOLLOWUP.items():
+        cfg = T.load_config([f"config/runs/{name}.py"])
+        want = dict(base, run_name=name, window_layers=windows, seed=seed, lr=5e-4, total_tokens=500 * M,
+                    log_router_grad=True, **extra)
+        # everything else (batch, schedule, balancing, eval, model shape) is the main runs' setting
+        diff = {k: (cfg[k], want[k]) for k in want if cfg[k] != want[k]}
+        assert not diff, f"{name}: {diff}"
+        _, steps, _ = T.derived(cfg)
+        assert steps == 7630
 
 
 def test_run_table(config_tree):
